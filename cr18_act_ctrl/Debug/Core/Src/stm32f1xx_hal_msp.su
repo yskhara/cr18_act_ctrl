@@ -1,0 +1,5 @@
+stm32f1xx_hal_msp.cpp:53:6:void HAL_MspInit()	16	static
+stm32f1xx_hal_msp.cpp:92:6:void HAL_TIM_Base_MspInit(TIM_HandleTypeDef*)	16	static
+stm32f1xx_hal_msp.cpp:115:6:void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef*)	8	static
+stm32f1xx_hal_msp.cpp:141:6:void HAL_UART_MspInit(UART_HandleTypeDef*)	40	static
+stm32f1xx_hal_msp.cpp:209:6:void HAL_UART_MspDeInit(UART_HandleTypeDef*)	8	static
