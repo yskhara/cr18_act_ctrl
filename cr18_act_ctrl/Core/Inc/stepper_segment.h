@@ -23,9 +23,9 @@ struct StepperSegment
     // dx in bresenham's algorithm
     int ticks_total = 0;
 
-    int bresenham_error = 0;
+    //int bresenham_error = 0;
 
-    //uint32_t dir_pattern = 0;
+    uint32_t dir_pattern = 0;
 
     int step_dir = 1;
 };

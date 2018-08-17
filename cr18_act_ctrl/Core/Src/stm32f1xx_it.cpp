@@ -41,7 +41,9 @@
 
 extern UART_HandleTypeDef huart1;
 extern TIM_HandleTypeDef htim4;
-extern StepperVelocityCtrl stepper_feet[3];
+extern StepperVelocityCtrl stepper_feet_a;
+extern StepperVelocityCtrl stepper_feet_b;
+extern StepperVelocityCtrl stepper_feet_c;
 //extern StepperVelocityCtrl stepper_foot;
 extern StepperPositionCtrl stepper_lift;
 
@@ -239,9 +241,9 @@ void TIM3_IRQHandler(void)
 	if ((TIM3->SR & TIM_SR_UIF) != 0u)
 	{
 		TIM3->SR = ~TIM_SR_UIF;
-        stepper_feet[0].calculate_profile();
-        stepper_feet[1].calculate_profile();
-        stepper_feet[2].calculate_profile();
+        stepper_feet_a.calculate_profile();
+        stepper_feet_b.calculate_profile();
+        stepper_feet_c.calculate_profile();
         stepper_lift.calculate_profile();
 	}
 }
@@ -254,17 +256,17 @@ void TIM4_IRQHandler(void)
 	if ((TIM4->SR & TIM_SR_UIF) != 0u)
 	{
 		TIM4->SR = ~TIM_SR_UIF;
-        stepper_feet[0].tick();
-        stepper_feet[1].tick();
-        stepper_feet[2].tick();
+        stepper_feet_a.tick();
+        stepper_feet_b.tick();
+        stepper_feet_c.tick();
         stepper_lift.tick();
 	}
 	else if ((TIM4->SR & TIM_SR_CC1IF) != 0u)
 	{
 		TIM4->SR = ~TIM_SR_CC1IF;
-        stepper_feet[0].reset_step();
-        stepper_feet[1].reset_step();
-        stepper_feet[2].reset_step();
+        stepper_feet_a.reset_step();
+        stepper_feet_b.reset_step();
+        stepper_feet_c.reset_step();
         stepper_lift.reset_step();
 	}
 }

@@ -23,38 +23,39 @@ MultiArrayDimension.h:76:18:virtual const char* std_msgs::MultiArrayDimension::g
 MultiArrayLayout.h:29:17:virtual int std_msgs::MultiArrayLayout::serialize(unsigned char*) const	24	static
 MultiArrayLayout.h:71:18:virtual const char* std_msgs::MultiArrayLayout::getType()	0	static
 MultiArrayLayout.h:72:18:virtual const char* std_msgs::MultiArrayLayout::getMD5()	0	static
-Int32MultiArray.h:82:18:virtual const char* std_msgs::Int32MultiArray::getType()	0	static
-Int32MultiArray.h:83:18:virtual const char* std_msgs::Int32MultiArray::getMD5()	0	static
-subscriber.h:128:15:int ros::Subscriber<MsgT, void>::getEndpointType() [with MsgT = std_msgs::Int32MultiArray]	0	static
-subscriber.h:120:24:const char* ros::Subscriber<MsgT, void>::getMsgType() [with MsgT = std_msgs::Int32MultiArray]	0	static
-subscriber.h:124:24:const char* ros::Subscriber<MsgT, void>::getMsgMD5() [with MsgT = std_msgs::Int32MultiArray]	0	static
+Float32MultiArray.h:82:18:virtual const char* std_msgs::Float32MultiArray::getType()	0	static
+Float32MultiArray.h:83:18:virtual const char* std_msgs::Float32MultiArray::getMD5()	0	static
+node_handle.h:363:16:bool ros::NodeHandle_<Hardware, MAX_SUBSCRIBERS, MAX_PUBLISHERS, INPUT_SIZE, OUTPUT_SIZE>::connected() [with Hardware = STM32Hardware; int MAX_SUBSCRIBERS = 25; int MAX_PUBLISHERS = 25; int INPUT_SIZE = 1024; int OUTPUT_SIZE = 1024]	0	static
+subscriber.h:128:15:int ros::Subscriber<MsgT, void>::getEndpointType() [with MsgT = std_msgs::Float32MultiArray]	0	static
+subscriber.h:120:24:const char* ros::Subscriber<MsgT, void>::getMsgType() [with MsgT = std_msgs::Float32MultiArray]	0	static
+subscriber.h:124:24:const char* ros::Subscriber<MsgT, void>::getMsgMD5() [with MsgT = std_msgs::Float32MultiArray]	0	static
 subscriber.h:114:16:void ros::Subscriber<MsgT, void>::callback(unsigned char*) [with MsgT = std_msgs::Int32]	8	static
 subscriber.h:128:15:int ros::Subscriber<MsgT, void>::getEndpointType() [with MsgT = std_msgs::Int32]	0	static
 subscriber.h:120:24:const char* ros::Subscriber<MsgT, void>::getMsgType() [with MsgT = std_msgs::Int32]	0	static
 subscriber.h:124:24:const char* ros::Subscriber<MsgT, void>::getMsgMD5() [with MsgT = std_msgs::Int32]	0	static
-node_handle.h:363:16:bool ros::NodeHandle_<Hardware, MAX_SUBSCRIBERS, MAX_PUBLISHERS, INPUT_SIZE, OUTPUT_SIZE>::connected() [with Hardware = STM32Hardware; int MAX_SUBSCRIBERS = 25; int MAX_PUBLISHERS = 25; int INPUT_SIZE = 1024; int OUTPUT_SIZE = 1024]	0	static
-main.cpp:174:6:void feet_velocity_callback(const std_msgs::Int32MultiArray&)	16	static
-main.cpp:375:13:void MX_GPIO_Init()	48	static
-main.cpp:352:13:void MX_DMA_Init()	16	static
-main.cpp:169:6:void lift_position_callback(const std_msgs::Int32&)	8	static
-main.cpp:421:1:void __static_initialization_and_destruction_0(int, int)	24	static
+main.cpp:394:13:void MX_GPIO_Init()	48	static
+main.cpp:371:13:void MX_DMA_Init()	16	static
 TopicInfo.h:43:17:virtual int rosserial_msgs::TopicInfo::serialize(unsigned char*) const	24	static
 Log.h:31:17:virtual int rosserial_msgs::Log::serialize(unsigned char*) const	16	static
 RequestParam.h:78:17:virtual int rosserial_msgs::RequestParamResponse::serialize(unsigned char*) const	32	static
 String.h:23:17:virtual int std_msgs::String::serialize(unsigned char*) const	16	static
 MultiArrayDimension.h:29:17:virtual int std_msgs::MultiArrayDimension::serialize(unsigned char*) const	16	static
 RequestParam.h:130:17:virtual int rosserial_msgs::RequestParamResponse::deserialize(unsigned char*)	24	static
+main.cpp:172:6:void lift_position_callback(const std_msgs::Int32&)	8	static
+main.cpp:177:6:void feet_velocity_callback(const std_msgs::Float32MultiArray&)	16	static
+main.cpp:440:1:void __static_initialization_and_destruction_0(int, int)	24	static
 node_handle.h:511:15:int ros::NodeHandle_<Hardware, MAX_SUBSCRIBERS, MAX_PUBLISHERS, INPUT_SIZE, OUTPUT_SIZE>::publish(int, const ros::Msg*) [with Hardware = STM32Hardware; int MAX_SUBSCRIBERS = 25; int MAX_PUBLISHERS = 25; int INPUT_SIZE = 1024; int OUTPUT_SIZE = 1024]	32	static
 MultiArrayLayout.h:48:17:virtual int std_msgs::MultiArrayLayout::deserialize(unsigned char*)	32	static
-Int32MultiArray.h:29:17:virtual int std_msgs::Int32MultiArray::serialize(unsigned char*) const	24	static
-subscriber.h:114:16:void ros::Subscriber<MsgT, void>::callback(unsigned char*) [with MsgT = std_msgs::Int32MultiArray]	40	static
-Int32MultiArray.h:53:17:virtual int std_msgs::Int32MultiArray::deserialize(unsigned char*)	32	static
+Float32MultiArray.h:29:17:virtual int std_msgs::Float32MultiArray::serialize(unsigned char*) const	24	static
+subscriber.h:114:16:void ros::Subscriber<MsgT, void>::callback(unsigned char*) [with MsgT = std_msgs::Float32MultiArray]	40	static
+Float32MultiArray.h:53:17:virtual int std_msgs::Float32MultiArray::deserialize(unsigned char*)	32	static
 node_handle.h:212:15:int ros::NodeHandle_<Hardware, MAX_SUBSCRIBERS, MAX_PUBLISHERS, INPUT_SIZE, OUTPUT_SIZE>::spinOnce() [with Hardware = STM32Hardware; int MAX_SUBSCRIBERS = 25; int MAX_PUBLISHERS = 25; int INPUT_SIZE = 1024; int OUTPUT_SIZE = 1024]	56	static
 SerialClass.h:94:17:void HAL_UART_TxCpltCallback(UART_HandleTypeDef*)	0	static
-main.cpp:413:6:void _Error_Handler(char*, int)	0	static
-main.cpp:331:13:void MX_USART1_UART_Init()	8	static
-main.cpp:253:13:void MX_TIM3_Init()	32	static
-main.cpp:285:13:void MX_TIM4_Init()	64	static
-main.cpp:207:6:void SystemClock_Config()	72	static
-main.cpp:100:5:int main()	16	static
-main.cpp:421:1:cpp)	8	static
+main.cpp:184:6:void act_enable_callback(const std_msgs::Bool&)	0	static
+main.cpp:432:6:void _Error_Handler(char*, int)	0	static
+main.cpp:350:13:void MX_USART1_UART_Init()	8	static
+main.cpp:272:13:void MX_TIM3_Init()	32	static
+main.cpp:303:13:void MX_TIM4_Init()	64	static
+main.cpp:226:6:void SystemClock_Config()	72	static
+main.cpp:103:5:int main()	56	static
+main.cpp:440:1:cpp)	8	static

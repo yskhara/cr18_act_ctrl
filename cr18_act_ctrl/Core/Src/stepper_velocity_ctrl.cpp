@@ -23,7 +23,6 @@ StepperVelocityCtrl::StepperVelocityCtrl(GPIO_TypeDef *step_gpio, uint16_t step_
 
     for (int i = 0; i < seg_buf_size; i++)
     {
-        seg_buf[i].bresenham_error = 0;
         seg_buf[i].steps_total = 0;
         seg_buf[i].remaining_ticks = 0;
         seg_buf[i].ticks_total = 0;
@@ -32,11 +31,6 @@ StepperVelocityCtrl::StepperVelocityCtrl(GPIO_TypeDef *step_gpio, uint16_t step_
 
 void StepperVelocityCtrl::reset_position(void)
 {
-    if (!m_is_idle)
-    {
-        return;
-    }
-
     m_current_velocity = 0;
 }
 
@@ -80,10 +74,12 @@ void StepperVelocityCtrl::calculate_profile(void)
 
         if (m_current_velocity < 0)
         {
+            seg->dir_pattern = this->m_dir_pin << 16;
             velocity_sgn = -1;
         }
         else
         {
+            seg->dir_pattern = this->m_dir_pin;
             velocity_sgn = 1;
         }
 
@@ -101,12 +97,22 @@ void StepperVelocityCtrl::calculate_profile(void)
     }
 }
 
-void StepperVelocityCtrl::set_target(int target)
+// target: rad/s
+void StepperVelocityCtrl::set_target(float target)
 {
-    m_target_velocity = target;
+    m_target_velocity = target * steps_per_rad;
+
+    if(m_target_velocity < -maximum_velocity)
+    {
+        m_target_velocity = -maximum_velocity;
+    }
+    else if(m_target_velocity > maximum_velocity)
+    {
+        m_target_velocity = maximum_velocity;
+    }
 
     calculate_profile();
 
-    m_is_idle = false;
+    //m_is_idle = false;
 }
 

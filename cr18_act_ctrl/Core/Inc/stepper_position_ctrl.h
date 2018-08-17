@@ -14,6 +14,17 @@
 class StepperPositionCtrl
 {
 private:
+
+    static constexpr double steps_per_mm = 16 * 200 * 3 / 40.0;
+    //static constexpr int maximum_velocity =  125 * steps_per_mm;      // in [milli-step/ms]
+    static constexpr int maximum_velocity = 10 * 3200;     // in [milli-step/ms]
+
+    static constexpr int maximum_acceleration = 24; //16 * 200 * 100 / 40 / 100;    // in [milli-step/ms^2]
+    //static constexpr int maximum_acceleration = 500;//32;//16 * 200 * 100 / 40 / 100;    // in [milli-step/ms^2]
+
+    static constexpr int ticks_per_ms = 64;//100;       // TIM4 64 kHz
+
+
     GPIO_TypeDef *m_step_gpio;
     GPIO_TypeDef *m_dir_gpio;
     volatile uint16_t m_step_pin;
@@ -25,24 +36,19 @@ private:
     volatile int m_actual_position = 0;
     volatile int m_current_velocity = 0;      // in milli-steps-per-milli-second
     //int m_step_dir = 1;                 // -1 for negative direction
-    volatile bool m_is_idle = true;
+
+    // bresenham's algorithm: initial value : -dx
+    volatile int m_bresenham_error = -ticks_per_ms * 1000;
+
+    //volatile bool m_is_idle = true;
     //bool m_busy = false;
-
-    static constexpr double steps_per_mm = 16 * 200 * 3 / 40.0;
-    //static constexpr int maximum_velocity =  125 * steps_per_mm;      // in [milli-step/ms]
-    static constexpr int maximum_velocity = 10 * 3200;     // in [milli-step/ms]
-
-    static constexpr int maximum_acceleration = 24; //16 * 200 * 100 / 40 / 100;    // in [milli-step/ms^2]
-    //static constexpr int maximum_acceleration = 500;//32;//16 * 200 * 100 / 40 / 100;    // in [milli-step/ms^2]
-
-    static constexpr int ticks_per_ms = 100;
 
     static constexpr int seg_buf_size = 8;            // size of segment buffer
     static constexpr int seg_buf_mask = seg_buf_size - 1;       // mask
     StepperSegment seg_buf[seg_buf_size];                             // segment buffer
     volatile int seg_buf_head = 0;                                   // pointer for store
     volatile int seg_buf_tail = 0;                                    // pointer for load
-    StepperSegment *current_segment = nullptr; // pointer to current segment which is currently being executed
+    StepperSegment *current_segment = seg_buf; // pointer to current segment which is currently being executed
 
 public:
     StepperPositionCtrl(GPIO_TypeDef *step_gpio, uint16_t step_pin, GPIO_TypeDef *dir_gpio, uint16_t dir_pin);
@@ -58,53 +64,45 @@ public:
 
     inline void reset_step(void)
     {
-        m_step_gpio->BRR = m_step_pin;      // un-step
+        this->m_step_gpio->BSRR = static_cast<uint32_t>(this->m_step_pin << 16);      // un-step
     }
 
     // workhorse
     // this needs to be called as often as ticks_per_sec.
-    void tick(void)
+    inline void tick(void)
     {
         // load next segment if neccesary
-        if (current_segment == nullptr || current_segment->remaining_ticks <= 0)
+        if (current_segment->remaining_ticks <= 0)
         {
             // segment complete; try to load next segment
             // check whether the queue is empty
             if (seg_buf_head == seg_buf_tail)
             {
                 // the queue is empty; starving: panic
-                m_is_idle = true;
+                //m_is_idle = true;
                 return;
             }
 
             current_segment = &seg_buf[seg_buf_tail];
             seg_buf_tail = ((seg_buf_tail + 1) & seg_buf_mask);
 
-            // bresenham's algorithm: initial value : -dx
-            current_segment->bresenham_error = -current_segment->ticks_total;
+            //current_segment->bresenham_error = -current_segment->ticks_total;
         }
 
-        if(current_segment->step_dir < 0)
-        {
-            m_dir_gpio->BRR = m_dir_pin;
-        }
-        else
-        {
-            m_dir_gpio->BSRR = m_dir_pin;
-        }
+        this->m_dir_gpio->BSRR = current_segment->dir_pattern;
 
-        if (current_segment->bresenham_error > 0)
+        if (this->m_bresenham_error > 0)
         {
             m_step_gpio->BSRR = m_step_pin;     // step
 
             m_actual_position += current_segment->step_dir;
 
             // -2*dx
-            current_segment->bresenham_error -= 2 * current_segment->ticks_total;
+            this->m_bresenham_error -= 2 * current_segment->ticks_total;
         }
 
         // 2*dy
-        current_segment->bresenham_error += 2 * current_segment->steps_total;
+        this->m_bresenham_error += 2 * current_segment->steps_total;
 
         current_segment->remaining_ticks--;
     }

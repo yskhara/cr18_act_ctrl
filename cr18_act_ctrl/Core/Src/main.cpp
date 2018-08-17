@@ -44,7 +44,8 @@
 #include <ros.h>
 #include <std_msgs/String.h>
 #include <std_msgs/Int32.h>
-#include <std_msgs/Int32MultiArray.h>
+#include <std_msgs/Float32MultiArray.h>
+#include <std_msgs/Bool.h>
 
 #include "stepper_position_ctrl.h"
 #include "stepper_velocity_ctrl.h"
@@ -75,20 +76,22 @@ static void MX_TIM4_Init(void);
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 void lift_position_callback(const std_msgs::Int32& lift_pos_msg);
-void feet_velocity_callback(const std_msgs::Int32MultiArray& feet_vel_msg);
+void feet_velocity_callback(const std_msgs::Float32MultiArray& feet_vel_msg);
+void act_enable_callback(const std_msgs::Bool& act_enable_msg);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
 
-StepperVelocityCtrl stepper_feet[3] = { StepperVelocityCtrl(GPIOA, GPIO_PIN_0, GPIOA, GPIO_PIN_1), StepperVelocityCtrl(GPIOA,
-        GPIO_PIN_2, GPIOA, GPIO_PIN_3), StepperVelocityCtrl(GPIOA, GPIO_PIN_4, GPIOA, GPIO_PIN_5) };
+StepperVelocityCtrl stepper_feet_a(GPIOA, GPIO_PIN_0, GPIOA, GPIO_PIN_1);
+StepperVelocityCtrl stepper_feet_b(GPIOA, GPIO_PIN_2, GPIOA, GPIO_PIN_3);
+StepperVelocityCtrl stepper_feet_c(GPIOA, GPIO_PIN_4, GPIOA, GPIO_PIN_5);
 StepperPositionCtrl stepper_lift(GPIOA, GPIO_PIN_6, GPIOA, GPIO_PIN_7);
 
 ros::NodeHandle nh;
 std_msgs::String str_msg;
 ros::Publisher chatter("chatter", &str_msg);
 ros::Subscriber<std_msgs::Int32> lift_position("lift_position", &lift_position_callback);
-ros::Subscriber<std_msgs::Int32MultiArray> feet_velocity("feet_velocity", &feet_velocity_callback);
+ros::Subscriber<std_msgs::Float32MultiArray> feet_velocity("motor_cmd_vel", &feet_velocity_callback);
 
 /* USER CODE END 0 */
 
@@ -127,12 +130,12 @@ int main(void)
 
     const char * hello = "Hello World!!";
 
-    int chatter_interval = 1000.0 / 2;
-    int chatter_last = HAL_GetTick();
+    unsigned int chatter_interval = 1000.0 / 2;
+    unsigned int chatter_last = HAL_GetTick();
 
     while (1)
     {
-#if 0
+#if 1
         if (nh.connected())
         {
             if (HAL_GetTick() - chatter_last > chatter_interval)
@@ -171,11 +174,27 @@ void lift_position_callback(const std_msgs::Int32& lift_pos_msg)
     stepper_lift.set_target_position(lift_pos_msg.data);
 }
 
-void feet_velocity_callback(const std_msgs::Int32MultiArray& feet_vel_msg)
+void feet_velocity_callback(const std_msgs::Float32MultiArray& feet_vel_msg)
 {
-    stepper_feet[0].set_target(feet_vel_msg.data[0]);
-    stepper_feet[1].set_target(feet_vel_msg.data[1]);
-    stepper_feet[2].set_target(feet_vel_msg.data[2]);
+    stepper_feet_a.set_target(feet_vel_msg.data[0]);
+    stepper_feet_b.set_target(feet_vel_msg.data[1]);
+    stepper_feet_c.set_target(feet_vel_msg.data[2]);
+}
+
+void act_enable_callback(const std_msgs::Bool& act_enable_msg)
+{
+    if(act_enable_msg.data)
+    {
+        // enable
+        GPIOA->BSRR = GPIO_BSRR_BS8;
+        GPIOC->BSRR = GPIO_BSRR_BR13;
+    }
+    else
+    {
+        // disable
+        GPIOA->BSRR = GPIO_BSRR_BR8;
+        GPIOC->BSRR = GPIO_BSRR_BS13;
+    }
 }
 
 #if 0
@@ -270,7 +289,6 @@ static void MX_TIM3_Init(void)
     if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
     {
         _Error_Handler(__FILE__, __LINE__);
-        void feet_velocity_callback(const std_msgs::Int32MultiArray& feet_vel_msg);
     }
 
     sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
@@ -288,10 +306,11 @@ static void MX_TIM4_Init(void)
     TIM_MasterConfigTypeDef sMasterConfig;
     TIM_OC_InitTypeDef sConfigOC;
 
+
     htim4.Instance = TIM4;
     htim4.Init.Prescaler = 72u - 1u;
     htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
-    htim4.Init.Period = 10u - 1u;
+    htim4.Init.Period = 20u - 1u;                         // 72 MHz / 1440 -> 50 kHz
     htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
     htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
     if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
@@ -318,7 +337,7 @@ static void MX_TIM4_Init(void)
     }
 
     sConfigOC.OCMode = TIM_OCMODE_TIMING;
-    sConfigOC.Pulse = 5u - 1u;
+    sConfigOC.Pulse = 10u - 1u;
     sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
     sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
     if (HAL_TIM_OC_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)

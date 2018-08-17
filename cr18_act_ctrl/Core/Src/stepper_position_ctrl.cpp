@@ -21,7 +21,7 @@ StepperPositionCtrl::StepperPositionCtrl(GPIO_TypeDef *step_gpio, uint16_t step_
 
     for (int j = 0; j < seg_buf_size; j++)
     {
-        seg_buf[j].bresenham_error = 0;
+        //seg_buf[j].bresenham_error = 0;
         seg_buf[j].remaining_ticks = 0;
         seg_buf[j].steps_total = 0;
         seg_buf[j].ticks_total = 0;
@@ -134,27 +134,30 @@ void StepperPositionCtrl::calculate_profile(void)
 
         if (m_current_velocity < 0)
         {
+            seg->dir_pattern = this->m_dir_pin << 16;
             velocity_sgn = -1;
         }
         else
         {
+            seg->dir_pattern = this->m_dir_pin;
             velocity_sgn = 1;
         }
 
         seg->step_dir = velocity_sgn;
         velocity_abs = velocity_sgn * m_current_velocity;
 
-        volatile int steps = (int) ((velocity_abs / 1000.0) + 0.5);  // in steps
+        //volatile int steps = (int) ((velocity_abs / 1000.0) + 0.5);  // in steps
         //int steps = (int) (velocity_abs / 1000);  // in steps
-        seg->steps_total = steps;
-        seg->ticks_total = ticks_per_ms;
+        seg->steps_total = velocity_abs;
+        seg->ticks_total = ticks_per_ms * 1000;
         seg->remaining_ticks = ticks_per_ms;
 
         seg->step_dir = velocity_sgn;
 
         seg_buf_head = ((seg_buf_head + 1) & seg_buf_mask);
 
-        m_current_position += velocity_sgn * steps * 1000;
+        m_current_position += velocity_sgn * velocity_abs;
+        //m_current_position += velocity_sgn * steps * 1000;
 
         //m_current_position = tmp_pos;
         //m_current_velocity = tmp_vel;
@@ -168,7 +171,5 @@ void StepperPositionCtrl::set_target_position(int target)
     m_target = target * 1000;       // convert to milli-steps
 
     calculate_profile();
-
-    m_is_idle = false;
 }
 
