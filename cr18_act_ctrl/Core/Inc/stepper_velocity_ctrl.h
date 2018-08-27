@@ -35,6 +35,8 @@ private:
     // bresenham's algorithm: initial value : -dx
     volatile int m_bresenham_error = -ticks_per_ms * 1000;
 
+    volatile bool m_enabled = false;
+
     static constexpr int seg_buf_size = 8;                     // size of segment buffer
     static constexpr int seg_buf_mask = seg_buf_size - 1;       // mask
     StepperSegment seg_buf[seg_buf_size];                              // segment buffer
@@ -45,7 +47,17 @@ private:
 public:
     StepperVelocityCtrl(GPIO_TypeDef *step_gpio, uint16_t step_pin, GPIO_TypeDef *dir_gpio, uint16_t dir_pin);
 
-    void reset_position(void);
+    inline void disable(void)
+    {
+        this->m_current_velocity = 0;
+        this->m_enabled = false;
+    }
+
+    inline void enable(void)
+    {
+        this->m_enabled = true;
+    }
+
     void calculate_profile(void);
     void control(void);
 
@@ -66,6 +78,13 @@ public:
     // this needs to be called as often as ticks_per_sec.
     void tick(void)
     {
+        /*
+        if (!this->m_enabled)
+        {
+            return;
+        }
+        */
+
         // load next segment if neccesary
         if (current_segment->remaining_ticks <= 0)
         {
@@ -77,9 +96,11 @@ public:
                 return;
             }
 
-            current_segment = &seg_buf[seg_buf_tail];
-            seg_buf_tail = ((seg_buf_tail + 1) & seg_buf_mask);
+            //current_segment = &seg_buf[seg_buf_tail];
+            //seg_buf_tail = ((seg_buf_tail + 1) & seg_buf_mask);
 
+            current_segment = &seg_buf[seg_buf_tail++];
+            seg_buf_tail &= seg_buf_mask;
 
             //m_actual_velocity = 0;
         }

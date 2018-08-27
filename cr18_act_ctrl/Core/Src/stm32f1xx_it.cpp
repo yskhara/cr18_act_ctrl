@@ -47,6 +47,10 @@ extern StepperVelocityCtrl stepper_feet_c;
 //extern StepperVelocityCtrl stepper_foot;
 extern StepperPositionCtrl stepper_lift;
 
+extern void on_shutdown_pressed(void);
+extern void on_shutdown_released(void);
+extern void on_start_pressed(void);
+
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
@@ -78,8 +82,10 @@ void HardFault_Handler(void)
 {
 	/* USER CODE BEGIN HardFault_IRQn 0 */
 
+    volatile int _continue = 0;
+
 	/* USER CODE END HardFault_IRQn 0 */
-	while (1)
+	while (_continue == 0)
 	{
 		/* USER CODE BEGIN W1_HardFault_IRQn 0 */
 		/* USER CODE END W1_HardFault_IRQn 0 */
@@ -237,6 +243,7 @@ void DMA1_Channel5_IRQHandler(void)
  */
 void TIM3_IRQHandler(void)
 {
+    //GPIOB->BSRR = GPIO_BSRR_BS15;
 	//HAL_TIM_IRQHandler(&htim3);
 	if ((TIM3->SR & TIM_SR_UIF) != 0u)
 	{
@@ -246,6 +253,7 @@ void TIM3_IRQHandler(void)
         stepper_feet_c.calculate_profile();
         stepper_lift.calculate_profile();
 	}
+    //GPIOB->BSRR = GPIO_BSRR_BR15;
 }
 
 /* USER CODE BEGIN 1 */
@@ -274,6 +282,38 @@ void TIM4_IRQHandler(void)
 void USART1_IRQHandler(void)
 {
 	HAL_UART_IRQHandler(&huart1);
+}
+
+// nES interrupt
+void EXTI3_IRQHandler(void)
+{
+    if(EXTI->PR & EXTI_PR_PR3)
+    {
+        EXTI->PR = EXTI_PR_PR3;
+
+        if(GPIOB->IDR & GPIO_IDR_IDR3)
+        {
+            //on_shutdown_released();
+        }
+        else
+        {
+            on_shutdown_pressed();
+        }
+    }
+}
+
+// START interrupt
+void EXTI4_IRQHandler(void)
+{
+    if(EXTI->PR & EXTI_PR_PR4)
+    {
+        EXTI->PR = EXTI_PR_PR4;
+
+        if(GPIOB->IDR & GPIO_IDR_IDR4)
+        {
+            on_start_pressed();
+        }
+    }
 }
 
 /* USER CODE END 1 */

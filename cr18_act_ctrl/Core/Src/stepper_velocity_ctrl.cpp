@@ -29,14 +29,14 @@ StepperVelocityCtrl::StepperVelocityCtrl(GPIO_TypeDef *step_gpio, uint16_t step_
     }
 }
 
-void StepperVelocityCtrl::reset_position(void)
-{
-    m_current_velocity = 0;
-}
-
 void StepperVelocityCtrl::calculate_profile(void)
 {
     //
+
+    if (!this->m_enabled)
+    {
+        this->m_target_velocity = 0;
+    }
 
     int vel_diff = m_target_velocity - m_current_velocity;
     int vel_diff_abs = abs(vel_diff);
@@ -100,18 +100,25 @@ void StepperVelocityCtrl::calculate_profile(void)
 // target: rad/s
 void StepperVelocityCtrl::set_target(float target)
 {
-    m_target_velocity = target * steps_per_rad;
-
-    if(m_target_velocity < -maximum_velocity)
+    if (!this->m_enabled)
     {
-        m_target_velocity = -maximum_velocity;
+        this->m_target_velocity = 0;
     }
-    else if(m_target_velocity > maximum_velocity)
+    else
     {
-        m_target_velocity = maximum_velocity;
+        m_target_velocity = target * steps_per_rad;
+
+        if (m_target_velocity < -maximum_velocity)
+        {
+            m_target_velocity = -maximum_velocity;
+        }
+        else if (m_target_velocity > maximum_velocity)
+        {
+            m_target_velocity = maximum_velocity;
+        }
     }
 
-    calculate_profile();
+    //calculate_profile();
 
     //m_is_idle = false;
 }

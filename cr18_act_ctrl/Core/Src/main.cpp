@@ -46,6 +46,7 @@
 #include <std_msgs/Int32.h>
 #include <std_msgs/Float32MultiArray.h>
 #include <std_msgs/Bool.h>
+#include <std_msgs/UInt16.h>
 
 #include "stepper_position_ctrl.h"
 #include "stepper_velocity_ctrl.h"
@@ -77,7 +78,14 @@ static void MX_TIM4_Init(void);
 /* Private function prototypes -----------------------------------------------*/
 void lift_position_callback(const std_msgs::Int32& lift_pos_msg);
 void feet_velocity_callback(const std_msgs::Float32MultiArray& feet_vel_msg);
+void hand_cylinder_callback(const std_msgs::Bool& hand_cylinder_msg);
 void act_enable_callback(const std_msgs::Bool& act_enable_msg);
+
+void disable_actuators(void);
+void enable_actuators(void);
+void on_shutdown_pressed(void);
+void on_shutdown_released(void);
+void on_start_pressed(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -87,11 +95,30 @@ StepperVelocityCtrl stepper_feet_b(GPIOA, GPIO_PIN_2, GPIOA, GPIO_PIN_3);
 StepperVelocityCtrl stepper_feet_c(GPIOA, GPIO_PIN_4, GPIOA, GPIO_PIN_5);
 StepperPositionCtrl stepper_lift(GPIOA, GPIO_PIN_6, GPIOA, GPIO_PIN_7);
 
+enum class UserInput
+    : uint16_t
+    {
+        shutdown = 1 << 0,
+    start = 1 << 1,
+};
+
 ros::NodeHandle nh;
-std_msgs::String str_msg;
-ros::Publisher chatter("chatter", &str_msg);
+std_msgs::UInt16 user_input_msg;
+ros::Publisher user_input_pub("user_input", &user_input_msg);
+ros::Subscriber<std_msgs::Bool> act_enable_sub("act_enable", &act_enable_callback);
 ros::Subscriber<std_msgs::Int32> lift_position("lift_position", &lift_position_callback);
 ros::Subscriber<std_msgs::Float32MultiArray> feet_velocity("motor_cmd_vel", &feet_velocity_callback);
+ros::Subscriber<std_msgs::Bool> hand_cylinder_sub("hand_cylinder", &hand_cylinder_callback);
+
+volatile bool is_actuators_enabled = false;
+volatile bool is_node_enabled = false;
+
+volatile bool is_shutdown_pressed = true;
+volatile bool is_shutdown_released = false;
+volatile bool is_start_pressed = false;
+
+constexpr unsigned int cmd_timeout = 100;     // in ms
+unsigned int last_cmd_time = HAL_GetTick();
 
 /* USER CODE END 0 */
 
@@ -117,6 +144,8 @@ int main(void)
     MX_TIM3_Init();
     MX_TIM4_Init();
 
+    //HAL_Delay(1000);
+
     HAL_TIM_Base_Start_IT(&htim3);
     HAL_TIM_Base_Start_IT(&htim4);
     HAL_TIM_OC_Start_IT(&htim4, TIM_CHANNEL_1);
@@ -124,26 +153,65 @@ int main(void)
     /* Infinite loop */
 
     nh.initNode();
-    nh.advertise(chatter);
+    nh.advertise(user_input_pub);
     nh.subscribe(lift_position);
     nh.subscribe(feet_velocity);
+    nh.subscribe(hand_cylinder_sub);
+    nh.subscribe(act_enable_sub);
 
-    const char * hello = "Hello World!!";
-
-    unsigned int chatter_interval = 1000.0 / 2;
-    unsigned int chatter_last = HAL_GetTick();
+    constexpr unsigned int ctrl_interval = 50;
+    unsigned int last_ctrl_time = HAL_GetTick();
 
     while (1)
     {
 #if 1
-        if (nh.connected())
+        unsigned int now = HAL_GetTick();
+
+        if (!is_node_enabled)
         {
-            if (HAL_GetTick() - chatter_last > chatter_interval)
+            // do nothing for now
+            if(nh.connected())
             {
-                str_msg.data = hello;
-                //chatter.publish(&str_msg);
-                chatter_last = HAL_GetTick();
+                is_node_enabled = true;
             }
+        }
+        else if (!nh.connected())
+        {
+            disable_actuators();
+            is_node_enabled = false;
+        }
+        else if (now - last_ctrl_time > ctrl_interval)
+        {
+#if 0
+            if(now - last_cmd_time > cmd_timeout)
+            {
+                // timeout
+                disable_actuators();
+                is_node_enabled = false;
+            }
+#endif
+
+            if(is_shutdown_pressed)
+            {
+                user_input_msg.data &= ~(1 << 15);
+                user_input_pub.publish(&user_input_msg);
+                is_shutdown_pressed = false;
+            }
+            if(is_shutdown_released)
+            {
+                user_input_msg.data |= (1 << 15);
+                user_input_pub.publish(&user_input_msg);
+                is_shutdown_released = false;
+            }
+            if(is_start_pressed)
+            {
+                user_input_msg.data |= (1 << 14);
+                user_input_pub.publish(&user_input_msg);
+                user_input_msg.data &= ~(1 << 14);
+                is_start_pressed = false;
+            }
+
+            last_ctrl_time = HAL_GetTick();
         }
 
         nh.spinOnce();
@@ -161,12 +229,65 @@ int main(void)
             GPIOC->BSRR = GPIO_PIN_13;
         }
 
-        stepper_feet[0].set_target(0);//
+        stepper_feet[0].set_target(0);        //
         while (!stepper_feet[0].motion_completed())
         ;
         HAL_Delay(1000);
 #endif
     }
+}
+
+void disable_actuators(void)
+{
+    GPIOA->BSRR = GPIO_BSRR_BS8;
+    GPIOC->BSRR = GPIO_BSRR_BS13;
+
+    GPIOB->BSRR = GPIO_BSRR_BR15;
+
+    stepper_feet_a.disable();
+    stepper_feet_b.disable();
+    stepper_feet_c.disable();
+    stepper_lift.disable();
+
+    is_actuators_enabled = false;
+}
+
+void enable_actuators(void)
+{
+    if (is_actuators_enabled)
+    {
+        return;
+    }
+
+    stepper_feet_a.enable();
+    stepper_feet_b.enable();
+    stepper_feet_c.enable();
+    stepper_lift.enable();
+
+    GPIOA->BSRR = GPIO_BSRR_BR8;
+    GPIOC->BSRR = GPIO_BSRR_BR13;
+
+    //GPIOB->BSRR = GPIO_BSRR_BR15;
+
+    is_actuators_enabled = true;
+}
+
+void on_shutdown_pressed(void)
+{
+    disable_actuators();
+    is_shutdown_pressed = true;
+}
+
+void on_shutdown_released(void)
+{
+    // do not enable actuators (yet)
+    is_shutdown_released = true;
+}
+
+void on_start_pressed(void)
+{
+    // do not enable actuators (yet)
+    is_start_pressed = true;
 }
 
 void lift_position_callback(const std_msgs::Int32& lift_pos_msg)
@@ -176,24 +297,46 @@ void lift_position_callback(const std_msgs::Int32& lift_pos_msg)
 
 void feet_velocity_callback(const std_msgs::Float32MultiArray& feet_vel_msg)
 {
+    if(feet_vel_msg.data_length != 3)
+    {
+        return;
+    }
+
     stepper_feet_a.set_target(feet_vel_msg.data[0]);
     stepper_feet_b.set_target(feet_vel_msg.data[1]);
     stepper_feet_c.set_target(feet_vel_msg.data[2]);
+
+    last_cmd_time = HAL_GetTick();
+}
+
+void hand_cylinder_callback(const std_msgs::Bool& hand_cylinder_msg)
+{
+    if(!is_actuators_enabled)
+    {
+        return;
+    }
+
+    if(hand_cylinder_msg.data)
+    {
+        GPIOB->BSRR = GPIO_BSRR_BS15;
+    }
+    else
+    {
+        GPIOB->BSRR = GPIO_BSRR_BR15;
+    }
 }
 
 void act_enable_callback(const std_msgs::Bool& act_enable_msg)
 {
-    if(act_enable_msg.data)
+    if (act_enable_msg.data)
     {
         // enable
-        GPIOA->BSRR = GPIO_BSRR_BS8;
-        GPIOC->BSRR = GPIO_BSRR_BR13;
+        enable_actuators();
     }
     else
     {
         // disable
-        GPIOA->BSRR = GPIO_BSRR_BR8;
-        GPIOC->BSRR = GPIO_BSRR_BS13;
+        disable_actuators();
     }
 }
 
@@ -306,7 +449,6 @@ static void MX_TIM4_Init(void)
     TIM_MasterConfigTypeDef sMasterConfig;
     TIM_OC_InitTypeDef sConfigOC;
 
-
     htim4.Instance = TIM4;
     htim4.Init.Prescaler = 72u - 1u;
     htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
@@ -406,17 +548,55 @@ static void MX_GPIO_Init(void)
 
     GPIO_InitTypeDef sGPIOConfig;
 
+    // PA0 thru 8: stepper driver signal output
     sGPIOConfig.Mode = GPIO_MODE_OUTPUT_PP;
-    sGPIOConfig.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7;
+    sGPIOConfig.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7
+            | GPIO_PIN_8;
     sGPIOConfig.Pull = GPIO_NOPULL;
     sGPIOConfig.Speed = GPIO_SPEED_FREQ_HIGH;
     HAL_GPIO_Init(GPIOA, &sGPIOConfig);
 
+    // PB0, PB1: LED output
+    sGPIOConfig.Mode = GPIO_MODE_OUTPUT_PP;
+    sGPIOConfig.Pin = GPIO_PIN_0 | GPIO_PIN_1;
+    sGPIOConfig.Pull = GPIO_NOPULL;
+    sGPIOConfig.Speed = GPIO_SPEED_FREQ_HIGH;
+    HAL_GPIO_Init(GPIOB, &sGPIOConfig);
+
+    // PB3: nES input, active-L
+    sGPIOConfig.Mode = GPIO_MODE_IT_RISING_FALLING;
+    sGPIOConfig.Pin = GPIO_PIN_3;
+    sGPIOConfig.Pull = GPIO_PULLDOWN;
+    sGPIOConfig.Speed = GPIO_SPEED_FREQ_HIGH;
+    HAL_GPIO_Init(GPIOB, &sGPIOConfig);
+
+    //  PB4: START input, active-H
+    sGPIOConfig.Mode = GPIO_MODE_IT_RISING;
+    sGPIOConfig.Pin = GPIO_PIN_4;
+    sGPIOConfig.Pull = GPIO_PULLDOWN;
+    sGPIOConfig.Speed = GPIO_SPEED_FREQ_HIGH;
+    HAL_GPIO_Init(GPIOB, &sGPIOConfig);
+
+    //  PB15: pneumatic solenoid valve output
+    sGPIOConfig.Mode = GPIO_MODE_OUTPUT_PP;
+    sGPIOConfig.Pin = GPIO_PIN_15;
+    sGPIOConfig.Pull = GPIO_PULLDOWN;
+    sGPIOConfig.Speed = GPIO_SPEED_FREQ_HIGH;
+    HAL_GPIO_Init(GPIOB, &sGPIOConfig);
+
+    // PC13: onboard LED output
     sGPIOConfig.Mode = GPIO_MODE_OUTPUT_PP;
     sGPIOConfig.Pin = GPIO_PIN_13;
     sGPIOConfig.Pull = GPIO_NOPULL;
     sGPIOConfig.Speed = GPIO_SPEED_FREQ_HIGH;
     HAL_GPIO_Init(GPIOC, &sGPIOConfig);
+
+    /* EXTI interrupt init*/
+    HAL_NVIC_SetPriority(EXTI3_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(EXTI3_IRQn);
+
+    HAL_NVIC_SetPriority(EXTI4_IRQn, 2, 0);
+    HAL_NVIC_EnableIRQ(EXTI4_IRQn);
 }
 
 /* USER CODE BEGIN 4 */

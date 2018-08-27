@@ -33,19 +33,27 @@ void StepperPositionCtrl::reset_position(void)
     m_current_velocity = 0;
     m_current_position = 0;
     m_actual_position = 0;
-    m_target = 0;
+    m_target_position = 0;
 }
 
 void StepperPositionCtrl::calculate_profile(void)
 {
+    if (!this->m_enabled)
+    {
+        this->m_current_velocity = 0;
+        this->m_current_position = 0;
+        this->m_actual_position = 0;
+        this->m_target_position = 0;
+    }
+
     int accel_until_ms = 0;
     int cruise_until_ms = 0;
     int decel_until_ms = 0;
     int cruise_vel = 0;
 
-    int target = m_target;
+    int target = m_target_position;
 
-    int position_delta = m_target - m_current_position;
+    int position_delta = m_target_position - m_current_position;
     int position_delta_sgn = 1;
     if (position_delta < 0)
     {
@@ -53,8 +61,8 @@ void StepperPositionCtrl::calculate_profile(void)
     }
     int position_delta_abs = position_delta_sgn * position_delta;
 
-    int decision_delta = (int) (((2 * maximum_velocity * maximum_velocity) - (m_current_velocity * m_current_velocity)) / (2.0 * maximum_acceleration)
-            + 0.9);
+    int decision_delta = (int) (((2 * maximum_velocity * maximum_velocity) - (m_current_velocity * m_current_velocity))
+            / (2.0 * maximum_acceleration) + 0.9);
 
     cruise_until_ms = (position_delta_abs - decision_delta) / maximum_velocity;
 
@@ -75,7 +83,7 @@ void StepperPositionCtrl::calculate_profile(void)
         cruise_vel = position_delta_sgn * cruise_vel_abs;
 
         int current_vel_abs = abs(m_current_velocity);
-        if(current_vel_abs > cruise_vel_abs)
+        if (current_vel_abs > cruise_vel_abs)
         {
             // special consideration for double-deceleration profile
             accel = -position_delta_sgn * maximum_acceleration;
@@ -84,7 +92,7 @@ void StepperPositionCtrl::calculate_profile(void)
             accel_until_ms = (current_vel_abs - cruise_vel_abs) / maximum_acceleration;
             decel_until_ms = cruise_vel_abs / maximum_acceleration;
         }
-        else if( cruise_vel_abs > 500)
+        else if (cruise_vel_abs > 500)
         {
             // triangle profile
             accel_until_ms = (cruise_vel_abs - current_vel_abs) / maximum_acceleration;
@@ -168,8 +176,11 @@ void StepperPositionCtrl::calculate_profile(void)
 
 void StepperPositionCtrl::set_target_position(int target)
 {
-    m_target = target * 1000;       // convert to milli-steps
+    if (this->m_enabled)
+    {
+        this->m_target_position = target * 1000;       // convert to milli-steps
+    }
 
-    calculate_profile();
+    //calculate_profile();
 }
 
