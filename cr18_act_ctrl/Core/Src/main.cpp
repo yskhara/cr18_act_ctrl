@@ -124,7 +124,6 @@ volatile bool is_actuators_enabled = false;
 volatile bool is_node_enabled = false;
 
 volatile bool is_shutdown_pressed = true;
-//volatile bool is_shutdown_released = false;
 volatile bool is_start_pressed = false;
 
 constexpr unsigned int cmd_timeout = 100;     // in ms

@@ -88,13 +88,6 @@ public:
     // this needs to be called as often as ticks_per_sec.
     inline void tick(void)
     {
-        /*
-        if (!this->m_enabled)
-        {
-            return;
-        }
-        */
-
         // load next segment if neccesary
         if (current_segment->remaining_ticks <= 0)
         {
@@ -107,13 +100,8 @@ public:
                 return;
             }
 
-            //current_segment = &seg_buf[seg_buf_tail];
-            //seg_buf_tail = ((seg_buf_tail + 1) & seg_buf_mask);
-
             current_segment = &seg_buf[seg_buf_tail++];
             seg_buf_tail &= seg_buf_mask;
-
-            //current_segment->bresenham_error = -current_segment->ticks_total;
         }
 
         this->m_dir_gpio->BSRR = current_segment->dir_pattern;
