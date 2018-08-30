@@ -294,7 +294,6 @@ void enable_actuators(void)
 void on_shutdown_pressed(void)
 {
     disable_actuators();
-    //is_shutdown = true;
     is_shutdown_pressed = true;
 }
 
