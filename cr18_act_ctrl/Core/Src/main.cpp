@@ -298,13 +298,6 @@ void on_shutdown_pressed(void)
     is_shutdown_pressed = true;
 }
 
-//void on_shutdown_released(void)
-//{
-    // do not enable actuators (yet)
-    //is_shutdown = false;
-    //is_shutdown_released = true;
-//}
-
 void on_start_pressed(void)
 {
     // do not enable actuators (yet)
