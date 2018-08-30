@@ -85,7 +85,6 @@ void act_enable_callback(const std_msgs::Bool& act_enable_msg);
 void disable_actuators(void);
 void enable_actuators(void);
 void on_shutdown_pressed(void);
-void on_shutdown_released(void);
 void on_start_pressed(void);
 /* USER CODE END PFP */
 
