@@ -47,9 +47,10 @@
 #include <std_msgs/Float32MultiArray.h>
 #include <std_msgs/Bool.h>
 #include <std_msgs/UInt16.h>
+#include <std_msgs/Empty.h>
 
 #include "stepper_position_ctrl.h"
-#include "stepper_velocity_ctrl.h"
+#include "feet_ctrl.h"
 
 /* USER CODE END Includes */
 
@@ -90,31 +91,41 @@ void on_start_pressed(void);
 
 /* USER CODE BEGIN 0 */
 
-StepperVelocityCtrl stepper_feet_a(GPIOA, GPIO_PIN_0, GPIOA, GPIO_PIN_1);
-StepperVelocityCtrl stepper_feet_b(GPIOA, GPIO_PIN_2, GPIOA, GPIO_PIN_3);
-StepperVelocityCtrl stepper_feet_c(GPIOA, GPIO_PIN_4, GPIOA, GPIO_PIN_5);
+//StepperVelocityCtrl stepper_feet_a(GPIOA, GPIO_PIN_0, GPIOA, GPIO_PIN_1);
+//StepperVelocityCtrl stepper_feet_b(GPIOA, GPIO_PIN_2, GPIOA, GPIO_PIN_3);
+//StepperVelocityCtrl stepper_feet_c(GPIOA, GPIO_PIN_4, GPIOA, GPIO_PIN_5);
+FeetCtrl feet_ctrl(GPIOA, GPIO_PIN_0, GPIO_PIN_2, GPIO_PIN_4, GPIOA, GPIO_PIN_1, GPIO_PIN_3, GPIO_PIN_5);
 StepperPositionCtrl stepper_lift(GPIOA, GPIO_PIN_6, GPIOA, GPIO_PIN_7);
 
-enum class UserInput
-    : uint16_t
+enum class shutdown_status
+    : uint8_t
     {
-        shutdown = 1 << 0,
-    start = 1 << 1,
+        operational = 0,
+    soft_shutdown = 1,
+    hard_shutdown = 2,
+    recovering = 3,
 };
 
 ros::NodeHandle nh;
-std_msgs::UInt16 user_input_msg;
-ros::Publisher user_input_pub("user_input", &user_input_msg);
+//std_msgs::UInt16 user_input_msg;
+//ros::Publisher user_input_pub("user_input", &user_input_msg);
 ros::Subscriber<std_msgs::Bool> act_enable_sub("act_enable", &act_enable_callback);
 ros::Subscriber<std_msgs::Int32> lift_position("lift_position", &lift_position_callback);
 ros::Subscriber<std_msgs::Float32MultiArray> feet_velocity("motor_cmd_vel", &feet_velocity_callback);
 ros::Subscriber<std_msgs::Bool> hand_cylinder_sub("hand_cylinder", &hand_cylinder_callback);
 
+std_msgs::Empty shutdown_input_msg;
+std_msgs::Empty start_input_msg;
+ros::Publisher shutdown_input_pub("shutdown_input", &shutdown_input_msg);
+ros::Publisher start_input_pub("start_input", &start_input_msg);
+
+volatile shutdown_status _shutdown_status = shutdown_status::soft_shutdown;
+
 volatile bool is_actuators_enabled = false;
 volatile bool is_node_enabled = false;
 
 volatile bool is_shutdown_pressed = true;
-volatile bool is_shutdown_released = false;
+//volatile bool is_shutdown_released = false;
 volatile bool is_start_pressed = false;
 
 constexpr unsigned int cmd_timeout = 100;     // in ms
@@ -153,11 +164,18 @@ int main(void)
     /* Infinite loop */
 
     nh.initNode();
-    nh.advertise(user_input_pub);
+    nh.advertise(shutdown_input_pub);
+    nh.advertise(start_input_pub);
     nh.subscribe(lift_position);
     nh.subscribe(feet_velocity);
     nh.subscribe(hand_cylinder_sub);
     nh.subscribe(act_enable_sub);
+
+    /* These uart interrupts halt any ongoing transfer if an error occurs, disable them */
+    /* Disable the UART Parity Error Interrupt */
+    __HAL_UART_DISABLE_IT(&huart1, UART_IT_PE);
+    /* Disable the UART Error Interrupt: (Frame error, noise error, overrun error) */
+    __HAL_UART_DISABLE_IT(&huart1, UART_IT_ERR);
 
     constexpr unsigned int ctrl_interval = 50;
     unsigned int last_ctrl_time = HAL_GetTick();
@@ -170,7 +188,7 @@ int main(void)
         if (!is_node_enabled)
         {
             // do nothing for now
-            if(nh.connected())
+            if (nh.connected())
             {
                 is_node_enabled = true;
             }
@@ -191,23 +209,28 @@ int main(void)
             }
 #endif
 
-            if(is_shutdown_pressed)
+
+            if((_shutdown_status != shutdown_status::hard_shutdown) && ((GPIOB->IDR & GPIO_IDR_IDR3) == 0u))
             {
-                user_input_msg.data &= ~(1 << 15);
-                user_input_pub.publish(&user_input_msg);
+                is_shutdown_pressed = true;
+            }
+
+            if (is_shutdown_pressed)
+            {
+                _shutdown_status = shutdown_status::hard_shutdown;
+                shutdown_input_pub.publish(&shutdown_input_msg);
+
                 is_shutdown_pressed = false;
             }
-            if(is_shutdown_released)
+
+            if (is_start_pressed)
             {
-                user_input_msg.data |= (1 << 15);
-                user_input_pub.publish(&user_input_msg);
-                is_shutdown_released = false;
-            }
-            if(is_start_pressed)
-            {
-                user_input_msg.data |= (1 << 14);
-                user_input_pub.publish(&user_input_msg);
-                user_input_msg.data &= ~(1 << 14);
+                if(_shutdown_status == shutdown_status::hard_shutdown)
+                {
+                    start_input_pub.publish(&start_input_msg);
+                    _shutdown_status = shutdown_status::recovering;
+                }
+
                 is_start_pressed = false;
             }
 
@@ -244,9 +267,7 @@ void disable_actuators(void)
 
     GPIOB->BSRR = GPIO_BSRR_BR15;
 
-    stepper_feet_a.disable();
-    stepper_feet_b.disable();
-    stepper_feet_c.disable();
+    feet_ctrl.disable();
     stepper_lift.disable();
 
     is_actuators_enabled = false;
@@ -259,9 +280,7 @@ void enable_actuators(void)
         return;
     }
 
-    stepper_feet_a.enable();
-    stepper_feet_b.enable();
-    stepper_feet_c.enable();
+    feet_ctrl.enable();
     stepper_lift.enable();
 
     GPIOA->BSRR = GPIO_BSRR_BR8;
@@ -275,14 +294,16 @@ void enable_actuators(void)
 void on_shutdown_pressed(void)
 {
     disable_actuators();
+    //is_shutdown = true;
     is_shutdown_pressed = true;
 }
 
-void on_shutdown_released(void)
-{
+//void on_shutdown_released(void)
+//{
     // do not enable actuators (yet)
-    is_shutdown_released = true;
-}
+    //is_shutdown = false;
+    //is_shutdown_released = true;
+//}
 
 void on_start_pressed(void)
 {
@@ -292,31 +313,39 @@ void on_start_pressed(void)
 
 void lift_position_callback(const std_msgs::Int32& lift_pos_msg)
 {
+    if (!is_actuators_enabled)
+    {
+        return;
+    }
+
     stepper_lift.set_target_position(lift_pos_msg.data);
 }
 
 void feet_velocity_callback(const std_msgs::Float32MultiArray& feet_vel_msg)
 {
-    if(feet_vel_msg.data_length != 3)
+    if (!is_actuators_enabled)
     {
         return;
     }
 
-    stepper_feet_a.set_target(feet_vel_msg.data[0]);
-    stepper_feet_b.set_target(feet_vel_msg.data[1]);
-    stepper_feet_c.set_target(feet_vel_msg.data[2]);
+    if (feet_vel_msg.data_length != 3)
+    {
+        return;
+    }
+
+    feet_ctrl.set_target(feet_vel_msg.data);
 
     last_cmd_time = HAL_GetTick();
 }
 
 void hand_cylinder_callback(const std_msgs::Bool& hand_cylinder_msg)
 {
-    if(!is_actuators_enabled)
+    if (!is_actuators_enabled)
     {
         return;
     }
 
-    if(hand_cylinder_msg.data)
+    if (hand_cylinder_msg.data)
     {
         GPIOB->BSRR = GPIO_BSRR_BS15;
     }
@@ -331,12 +360,21 @@ void act_enable_callback(const std_msgs::Bool& act_enable_msg)
     if (act_enable_msg.data)
     {
         // enable
-        enable_actuators();
+        if(_shutdown_status == shutdown_status::recovering)
+        {
+            enable_actuators();
+            _shutdown_status = shutdown_status::operational;
+        }
     }
     else
     {
         // disable
         disable_actuators();
+
+        if(_shutdown_status == shutdown_status::operational)
+        {
+            _shutdown_status = shutdown_status::soft_shutdown;
+        }
     }
 }
 
@@ -493,7 +531,7 @@ static void MX_USART1_UART_Init(void)
 {
 
     huart1.Instance = USART1;
-    huart1.Init.BaudRate = 460800;
+    huart1.Init.BaudRate = 921600;                         //460800;
     huart1.Init.WordLength = UART_WORDLENGTH_8B;
     huart1.Init.StopBits = UART_STOPBITS_1;
     huart1.Init.Parity = UART_PARITY_NONE;
@@ -564,7 +602,7 @@ static void MX_GPIO_Init(void)
     HAL_GPIO_Init(GPIOB, &sGPIOConfig);
 
     // PB3: nES input, active-L
-    sGPIOConfig.Mode = GPIO_MODE_IT_RISING_FALLING;
+    sGPIOConfig.Mode = GPIO_MODE_IT_FALLING;
     sGPIOConfig.Pin = GPIO_PIN_3;
     sGPIOConfig.Pull = GPIO_PULLDOWN;
     sGPIOConfig.Speed = GPIO_SPEED_FREQ_HIGH;

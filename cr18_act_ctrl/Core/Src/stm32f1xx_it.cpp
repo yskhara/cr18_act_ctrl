@@ -35,16 +35,16 @@
 #include "stm32f1xx.h"
 #include "stm32f1xx_it.h"
 #include "stepper_position_ctrl.h"
-#include "stepper_velocity_ctrl.h"
+#include "feet_ctrl.h"
 
 /* USER CODE BEGIN 0 */
 
 extern UART_HandleTypeDef huart1;
 extern TIM_HandleTypeDef htim4;
-extern StepperVelocityCtrl stepper_feet_a;
-extern StepperVelocityCtrl stepper_feet_b;
-extern StepperVelocityCtrl stepper_feet_c;
-//extern StepperVelocityCtrl stepper_foot;
+//extern StepperVelocityCtrl stepper_feet_a;
+//extern StepperVelocityCtrl stepper_feet_b;
+//extern StepperVelocityCtrl stepper_feet_c;
+extern FeetCtrl feet_ctrl;
 extern StepperPositionCtrl stepper_lift;
 
 extern void on_shutdown_pressed(void);
@@ -243,40 +243,40 @@ void DMA1_Channel5_IRQHandler(void)
  */
 void TIM3_IRQHandler(void)
 {
-    //GPIOB->BSRR = GPIO_BSRR_BS15;
 	//HAL_TIM_IRQHandler(&htim3);
 	if ((TIM3->SR & TIM_SR_UIF) != 0u)
 	{
 		TIM3->SR = ~TIM_SR_UIF;
-        stepper_feet_a.calculate_profile();
-        stepper_feet_b.calculate_profile();
-        stepper_feet_c.calculate_profile();
+        feet_ctrl.calculate_profile();
+        //stepper_feet_b.calculate_profile();
+        //stepper_feet_c.calculate_profile();
         stepper_lift.calculate_profile();
 	}
-    //GPIOB->BSRR = GPIO_BSRR_BR15;
 }
 
 /* USER CODE BEGIN 1 */
 //extern "C"
 void TIM4_IRQHandler(void)
 {
+    //GPIOB->BSRR = GPIO_BSRR_BS15;
 	//HAL_TIM_IRQHandler(&htim4);
 	if ((TIM4->SR & TIM_SR_UIF) != 0u)
 	{
 		TIM4->SR = ~TIM_SR_UIF;
-        stepper_feet_a.tick();
-        stepper_feet_b.tick();
-        stepper_feet_c.tick();
+        feet_ctrl.tick();
+        //stepper_feet_b.tick();
+        //stepper_feet_c.tick();
         stepper_lift.tick();
 	}
 	else if ((TIM4->SR & TIM_SR_CC1IF) != 0u)
 	{
 		TIM4->SR = ~TIM_SR_CC1IF;
-        stepper_feet_a.reset_step();
-        stepper_feet_b.reset_step();
-        stepper_feet_c.reset_step();
+        feet_ctrl.reset_step();
+        //stepper_feet_b.reset_step();
+        //stepper_feet_c.reset_step();
         stepper_lift.reset_step();
 	}
+    //GPIOB->BSRR = GPIO_BSRR_BR15;
 }
 
 void USART1_IRQHandler(void)
@@ -291,14 +291,14 @@ void EXTI3_IRQHandler(void)
     {
         EXTI->PR = EXTI_PR_PR3;
 
-        if(GPIOB->IDR & GPIO_IDR_IDR3)
-        {
+        //if(GPIOB->IDR & GPIO_IDR_IDR3)
+        //{
             //on_shutdown_released();
-        }
-        else
-        {
+        //}
+        //else
+        //{
             on_shutdown_pressed();
-        }
+        //}
     }
 }
 
@@ -309,10 +309,13 @@ void EXTI4_IRQHandler(void)
     {
         EXTI->PR = EXTI_PR_PR4;
 
-        if(GPIOB->IDR & GPIO_IDR_IDR4)
+        //if(GPIOB->IDR & GPIO_IDR_IDR4)
+        //{
+        if((GPIOB->IDR & GPIO_IDR_IDR3) != 0u)
         {
             on_start_pressed();
         }
+        //}
     }
 }
 

@@ -33,7 +33,7 @@ public:
 		//this->huart = huart;
 	}
 
-	inline UART_HandleTypeDef * const get_handle(void)
+	inline UART_HandleTypeDef * get_handle(void)
 	{
 		return &huart;
 	}
