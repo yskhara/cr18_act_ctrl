@@ -481,6 +481,7 @@ static void MX_TIM4_Init(void)
     htim4.Init.Prescaler = 72u - 1u;
     htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
     htim4.Init.Period = 20u - 1u;                         // 72 MHz / 1440 -> 50 kHz
+    //htim4.Init.Period = 50u - 1u;                         // 72 MHz / 3600 -> 20 kHz
     htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
     htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
     if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
@@ -507,7 +508,7 @@ static void MX_TIM4_Init(void)
     }
 
     sConfigOC.OCMode = TIM_OCMODE_TIMING;
-    sConfigOC.Pulse = 10u - 1u;
+    sConfigOC.Pulse = 17u - 1u;
     sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
     sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
     if (HAL_TIM_OC_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)

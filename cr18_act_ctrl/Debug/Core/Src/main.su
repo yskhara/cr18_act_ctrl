@@ -26,11 +26,11 @@ Bool.h:23:17:virtual int std_msgs::Bool::serialize(unsigned char*) const	0	stati
 Bool.h:36:17:virtual int std_msgs::Bool::deserialize(unsigned char*)	0	static
 Bool.h:50:18:virtual const char* std_msgs::Bool::getType()	0	static
 Bool.h:51:18:virtual const char* std_msgs::Bool::getMD5()	0	static
-UInt16.h:23:17:virtual int std_msgs::UInt16::serialize(unsigned char*) const	0	static
-UInt16.h:32:17:virtual int std_msgs::UInt16::deserialize(unsigned char*)	0	static
-UInt16.h:41:18:virtual const char* std_msgs::UInt16::getType()	0	static
-UInt16.h:42:18:virtual const char* std_msgs::UInt16::getMD5()	0	static
-main.cpp:313:6:void hand_cylinder_callback(const std_msgs::Bool&)	0	static
+Empty.h:20:17:virtual int std_msgs::Empty::serialize(unsigned char*) const	0	static
+Empty.h:26:17:virtual int std_msgs::Empty::deserialize(unsigned char*)	0	static
+Empty.h:32:18:virtual const char* std_msgs::Empty::getType()	0	static
+Empty.h:33:18:virtual const char* std_msgs::Empty::getMD5()	0	static
+main.cpp:331:6:void hand_cylinder_callback(const std_msgs::Bool&)	0	static
 node_handle.h:363:16:bool ros::NodeHandle_<Hardware, MAX_SUBSCRIBERS, MAX_PUBLISHERS, INPUT_SIZE, OUTPUT_SIZE>::connected() [with Hardware = STM32Hardware; int MAX_SUBSCRIBERS = 25; int MAX_PUBLISHERS = 25; int INPUT_SIZE = 1024; int OUTPUT_SIZE = 1024]	0	static
 subscriber.h:128:15:int ros::Subscriber<MsgT, void>::getEndpointType() [with MsgT = std_msgs::Float32MultiArray]	0	static
 subscriber.h:120:24:const char* ros::Subscriber<MsgT, void>::getMsgType() [with MsgT = std_msgs::Float32MultiArray]	0	static
@@ -43,16 +43,16 @@ subscriber.h:114:16:void ros::Subscriber<MsgT, void>::callback(unsigned char*) [
 subscriber.h:128:15:int ros::Subscriber<MsgT, void>::getEndpointType() [with MsgT = std_msgs::Bool]	0	static
 subscriber.h:120:24:const char* ros::Subscriber<MsgT, void>::getMsgType() [with MsgT = std_msgs::Bool]	0	static
 subscriber.h:124:24:const char* ros::Subscriber<MsgT, void>::getMsgMD5() [with MsgT = std_msgs::Bool]	0	static
-main.cpp:537:13:void MX_GPIO_Init()	56	static
-main.cpp:514:13:void MX_DMA_Init()	16	static
+main.cpp:565:13:void MX_GPIO_Init()	56	static
+main.cpp:542:13:void MX_DMA_Init()	16	static
 TopicInfo.h:43:17:virtual int rosserial_msgs::TopicInfo::serialize(unsigned char*) const	24	static
 Log.h:31:17:virtual int rosserial_msgs::Log::serialize(unsigned char*) const	16	static
 RequestParam.h:78:17:virtual int rosserial_msgs::RequestParamResponse::serialize(unsigned char*) const	32	static
 MultiArrayDimension.h:29:17:virtual int std_msgs::MultiArrayDimension::serialize(unsigned char*) const	16	static
 RequestParam.h:130:17:virtual int rosserial_msgs::RequestParamResponse::deserialize(unsigned char*)	24	static
-main.cpp:296:6:void lift_position_callback(const std_msgs::Int32&)	8	static
-main.cpp:301:6:void feet_velocity_callback(const std_msgs::Float32MultiArray&)	8	static
-main.cpp:621:1:void __static_initialization_and_destruction_0(int, int)	40	static
+main.cpp:304:6:void lift_position_callback(const std_msgs::Int32&)	8	static
+main.cpp:314:6:void feet_velocity_callback(const std_msgs::Float32MultiArray&)	8	static
+main.cpp:649:1:void __static_initialization_and_destruction_0(int, int)	40	static
 node_handle.h:511:15:int ros::NodeHandle_<Hardware, MAX_SUBSCRIBERS, MAX_PUBLISHERS, INPUT_SIZE, OUTPUT_SIZE>::publish(int, const ros::Msg*) [with Hardware = STM32Hardware; int MAX_SUBSCRIBERS = 25; int MAX_PUBLISHERS = 25; int INPUT_SIZE = 1024; int OUTPUT_SIZE = 1024]	32	static
 MultiArrayLayout.h:48:17:virtual int std_msgs::MultiArrayLayout::deserialize(unsigned char*)	32	static
 Float32MultiArray.h:29:17:virtual int std_msgs::Float32MultiArray::serialize(unsigned char*) const	24	static
@@ -60,16 +60,15 @@ subscriber.h:114:16:void ros::Subscriber<MsgT, void>::callback(unsigned char*) [
 Float32MultiArray.h:53:17:virtual int std_msgs::Float32MultiArray::deserialize(unsigned char*)	32	static
 node_handle.h:212:15:int ros::NodeHandle_<Hardware, MAX_SUBSCRIBERS, MAX_PUBLISHERS, INPUT_SIZE, OUTPUT_SIZE>::spinOnce() [with Hardware = STM32Hardware; int MAX_SUBSCRIBERS = 25; int MAX_PUBLISHERS = 25; int INPUT_SIZE = 1024; int OUTPUT_SIZE = 1024]	56	static
 SerialClass.h:94:17:void HAL_UART_TxCpltCallback(UART_HandleTypeDef*)	0	static
-main.cpp:247:6:void disable_actuators()	0	static
-main.cpp:260:6:void enable_actuators()	0	static
-main.cpp:330:6:void act_enable_callback(const std_msgs::Bool&)	8	static
-main.cpp:278:6:void on_shutdown_pressed()	8	static
-main.cpp:284:6:void on_shutdown_released()	0	static
-main.cpp:290:6:void on_start_pressed()	0	static
-main.cpp:613:6:void _Error_Handler(char*, int)	0	static
-main.cpp:493:13:void MX_USART1_UART_Init()	8	static
-main.cpp:416:13:void MX_TIM3_Init()	32	static
-main.cpp:447:13:void MX_TIM4_Init()	64	static
-main.cpp:370:6:void SystemClock_Config()	72	static
-main.cpp:131:5:int main()	56	static
-main.cpp:621:1:cpp)	8	static
+main.cpp:261:6:void disable_actuators()	0	static
+main.cpp:274:6:void enable_actuators()	0	static
+main.cpp:348:6:void act_enable_callback(const std_msgs::Bool&)	8	static
+main.cpp:292:6:void on_shutdown_pressed()	8	static
+main.cpp:298:6:void on_start_pressed()	0	static
+main.cpp:641:6:void _Error_Handler(char*, int)	0	static
+main.cpp:521:13:void MX_USART1_UART_Init()	8	static
+main.cpp:443:13:void MX_TIM3_Init()	32	static
+main.cpp:474:13:void MX_TIM4_Init()	64	static
+main.cpp:397:6:void SystemClock_Config()	72	static
+main.cpp:139:5:int main()	56	static
+main.cpp:649:1:cpp)	8	static

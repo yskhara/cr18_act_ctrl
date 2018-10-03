@@ -83,7 +83,16 @@ void StepperPositionCtrl::calculate_profile(void)
         cruise_vel = position_delta_sgn * cruise_vel_abs;
 
         int current_vel_abs = abs(m_current_velocity);
-        if (current_vel_abs > cruise_vel_abs)
+
+        if (m_current_velocity * cruise_vel < 0)
+        {
+            // over-shoot profile
+            //accel = position_delta_sgn * maximum_acceleration;
+            //decel = -accel;
+            accel_until_ms = (current_vel_abs + cruise_vel_abs) / maximum_acceleration;
+            decel_until_ms = cruise_vel_abs / maximum_acceleration;
+        }
+        else if (current_vel_abs > cruise_vel_abs)
         {
             // special consideration for double-deceleration profile
             accel = -position_delta_sgn * maximum_acceleration;

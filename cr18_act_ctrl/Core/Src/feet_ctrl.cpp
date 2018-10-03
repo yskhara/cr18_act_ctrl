@@ -43,6 +43,7 @@ void FeetCtrl::calculate_profile(void)
         this->m_target_velocity[2] = 0;
     }
 
+#ifdef ACCEL_LIMIT
     int accel_until_ms = 0;
     int accel[3];
 
@@ -63,6 +64,10 @@ void FeetCtrl::calculate_profile(void)
         accel[i] = vel_diff[i] / accel_until_ms;
     }
 
+#else
+
+#endif
+
     while (((seg_buf_head + 1) & seg_buf_mask) != seg_buf_tail)
     {
         // fill the queue
@@ -73,6 +78,8 @@ void FeetCtrl::calculate_profile(void)
 
         for (int i = 0; i < 3; i++)
         {
+
+#ifdef ACCEL_LIMIT
             if (accel_until_ms > 0)
             {
                 m_current_velocity[i] += accel[i];
@@ -82,6 +89,9 @@ void FeetCtrl::calculate_profile(void)
             {
                 m_current_velocity[i] = m_target_velocity[i];
             }
+#else
+            m_current_velocity[i] = m_target_velocity[i];
+#endif
 
             if (m_current_velocity[i] < 0)
             {
@@ -110,7 +120,7 @@ void FeetCtrl::calculate_profile(void)
 // target: rad/s
 void FeetCtrl::set_target(float (&target)[3])
 {
-    this->set_target((float * const)target);
+    this->set_target((float * const ) target);
 }
 
 void FeetCtrl::set_target(float * const target)

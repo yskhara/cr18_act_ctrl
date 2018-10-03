@@ -10,7 +10,7 @@ stm32f1xx_it.cpp:194:6:void SysTick_Handler()	8	static
 stm32f1xx_it.cpp:216:6:void DMA1_Channel4_IRQHandler()	8	static
 stm32f1xx_it.cpp:230:6:void DMA1_Channel5_IRQHandler()	8	static
 stm32f1xx_it.cpp:244:6:void TIM3_IRQHandler()	8	static
-stm32f1xx_it.cpp:259:6:void TIM4_IRQHandler()	0	static
+stm32f1xx_it.cpp:259:6:void TIM4_IRQHandler()	8	static
 stm32f1xx_it.cpp:282:6:void USART1_IRQHandler()	8	static
 stm32f1xx_it.cpp:288:6:void EXTI3_IRQHandler()	8	static
 stm32f1xx_it.cpp:306:6:void EXTI4_IRQHandler()	8	static

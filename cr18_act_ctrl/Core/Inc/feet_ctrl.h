@@ -11,6 +11,8 @@
 #include "stm32f1xx_hal.h"
 #include <cmath>
 
+//#define ACCEL_LIMIT
+
 class FeetCtrl
 {
 private:
@@ -37,7 +39,10 @@ private:
     static constexpr double steps_per_rev = 16 * 200;
     static constexpr double steps_per_rad = steps_per_rev / (2.0 * M_PI);
     static constexpr double maximum_velocity = 6 * steps_per_rev;       // in [milli-step/ms]
+
+#ifdef ACCEL_LIMIT
     static constexpr double maximum_acceleration = steps_per_rev / 20; //32;//16 * 200 * 100 / 40 / 100;   // in [milli-step/ms^2]
+#endif
 
     static constexpr int ticks_per_ms = 50;      //100;       // TIM4 50 kHz
 
