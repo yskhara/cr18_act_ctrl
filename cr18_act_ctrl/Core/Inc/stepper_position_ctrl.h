@@ -44,7 +44,7 @@ private:
     //volatile bool m_is_idle = true;
     //bool m_busy = false;
 
-    static constexpr int seg_buf_size = 8;            // size of segment buffer
+    static constexpr int seg_buf_size = 30;            // size of segment buffer
     static constexpr int seg_buf_mask = seg_buf_size - 1;       // mask
     StepperSegment seg_buf[seg_buf_size];                             // segment buffer
     volatile int seg_buf_head = 0;                                   // pointer for store

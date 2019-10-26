@@ -1,4 +1,0 @@
-stepper_position_ctrl.cpp:12:1:StepperPositionCtrl::StepperPositionCtrl(GPIO_TypeDef*, uint16_t, GPIO_TypeDef*, uint16_t)	32	static
-stepper_position_ctrl.cpp:31:6:void StepperPositionCtrl::reset_position()	0	static
-stepper_position_ctrl.cpp:39:6:void StepperPositionCtrl::calculate_profile()	56	static
-stepper_position_ctrl.cpp:177:6:void StepperPositionCtrl::set_target_position(int)	0	static

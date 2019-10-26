@@ -11,7 +11,7 @@
 #include "stm32f1xx_hal.h"
 #include <cmath>
 
-//#define ACCEL_LIMIT
+#define ACCEL_LIMIT
 
 class FeetCtrl
 {
@@ -36,12 +36,12 @@ private:
         int step_dir[3] = { 1, 1, 1 };
     };
 
-    static constexpr double steps_per_rev = 16 * 200;
+    static constexpr double steps_per_rev = (45.0 / 16) * 16 * 200;
     static constexpr double steps_per_rad = steps_per_rev / (2.0 * M_PI);
     static constexpr double maximum_velocity = 6 * steps_per_rev;       // in [milli-step/ms]
 
 #ifdef ACCEL_LIMIT
-    static constexpr double maximum_acceleration = steps_per_rev / 20; //32;//16 * 200 * 100 / 40 / 100;   // in [milli-step/ms^2]
+    static constexpr double maximum_acceleration = steps_per_rev / 64; // spr/20 seems good.   // in [milli-step/ms^2]
 #endif
 
     static constexpr int ticks_per_ms = 50;      //100;       // TIM4 50 kHz
@@ -65,7 +65,7 @@ private:
 
     volatile bool m_enabled = false;
 
-    static constexpr int seg_buf_size = 8;                     // size of segment buffer
+    static constexpr int seg_buf_size = 64;                     // size of segment buffer
     static constexpr int seg_buf_mask = seg_buf_size - 1;       // mask
     StepperSegment seg_buf[seg_buf_size];                              // segment buffer
     volatile int seg_buf_head = 0;                                       // pointer for store

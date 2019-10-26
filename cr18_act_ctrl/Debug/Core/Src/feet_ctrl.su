@@ -1,4 +1,0 @@
-feet_ctrl.cpp:14:1:FeetCtrl::FeetCtrl(GPIO_TypeDef*, uint16_t, uint16_t, uint16_t, GPIO_TypeDef*, uint16_t, uint16_t, uint16_t)	32	static
-feet_ctrl.cpp:37:6:void FeetCtrl::calculate_profile()	16	static
-feet_ctrl.cpp:126:6:void FeetCtrl::set_target(float*)	16	static
-feet_ctrl.cpp:121:6:void FeetCtrl::set_target(float (&)[3])	8	static

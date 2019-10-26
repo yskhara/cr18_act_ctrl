@@ -36,6 +36,7 @@
 #include "stm32f1xx_it.h"
 #include "stepper_position_ctrl.h"
 #include "feet_ctrl.h"
+#include "led.hpp"
 
 /* USER CODE BEGIN 0 */
 
@@ -251,6 +252,8 @@ void TIM3_IRQHandler(void)
         //stepper_feet_b.calculate_profile();
         //stepper_feet_c.calculate_profile();
         stepper_lift.calculate_profile();
+
+        led_process();
 	}
 }
 
