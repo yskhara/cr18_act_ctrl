@@ -1,3 +1,0 @@
-stepper_velocity_ctrl.cpp:14:1:StepperVelocityCtrl::StepperVelocityCtrl(GPIO_TypeDef*, uint16_t, GPIO_TypeDef*, uint16_t)	32	static
-stepper_velocity_ctrl.cpp:32:6:void StepperVelocityCtrl::calculate_profile()	24	static
-stepper_velocity_ctrl.cpp:101:6:void StepperVelocityCtrl::set_target(float)	8	static

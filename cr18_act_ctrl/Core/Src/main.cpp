@@ -39,15 +39,18 @@
 #include "main.h"
 #include "stm32f1xx_hal.h"
 
+
+#include "led.hpp"
+
 /* USER CODE BEGIN Includes */
 
 #include <ros.h>
-#include <std_msgs/String.h>
-#include <std_msgs/Int32.h>
+//#include <std_msgs/String.h>
+//#include <std_msgs/Int32.h>
 #include <std_msgs/Float32MultiArray.h>
 #include <std_msgs/Bool.h>
-#include <std_msgs/UInt16.h>
-//#include <std_msgs/Empty.h>
+#include <std_msgs/Int16.h>
+#include <std_msgs/Empty.h>
 
 #include "stepper_position_ctrl.h"
 #include "feet_ctrl.h"
@@ -55,6 +58,8 @@
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
+TIM_HandleTypeDef htim1;
+TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 
@@ -72,15 +77,20 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_TIM1_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM4_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
-void lift_position_callback(const std_msgs::Int32& lift_pos_msg);
-void feet_velocity_callback(const std_msgs::Float32MultiArray& feet_vel_msg);
-void hand_cylinder_callback(const std_msgs::Bool& hand_cylinder_msg);
-void act_enable_callback(const std_msgs::Bool& act_enable_msg);
+void launcher_pitch_callback(const std_msgs::Int16& msg);
+void feet_velocity_callback(const std_msgs::Float32MultiArray& msg);
+void act_enable_callback(const std_msgs::Bool& msg);
+
+void launcher_esc_callback(const std_msgs::Int16& msg);
+void loader_servo_callback(const std_msgs::Int16& msg);
+void arm_servo_callback(const std_msgs::Int16& msg);
+void picker_esc_callback(const std_msgs::Int16& msg);
 
 void disable_actuators(void);
 void enable_actuators(void);
@@ -93,28 +103,30 @@ void on_start_pressed(void);
 //StepperVelocityCtrl stepper_feet_a(GPIOA, GPIO_PIN_0, GPIOA, GPIO_PIN_1);
 //StepperVelocityCtrl stepper_feet_b(GPIOA, GPIO_PIN_2, GPIOA, GPIO_PIN_3);
 //StepperVelocityCtrl stepper_feet_c(GPIOA, GPIO_PIN_4, GPIOA, GPIO_PIN_5);
-FeetCtrl feet_ctrl(GPIOA, GPIO_PIN_0, GPIO_PIN_2, GPIO_PIN_4, GPIOA, GPIO_PIN_1, GPIO_PIN_3, GPIO_PIN_5);
+FeetCtrl feet_ctrl(GPIOA, GPIO_PIN_0, GPIO_PIN_2, GPIO_PIN_4, GPIOA, GPIO_PIN_1,
+GPIO_PIN_3, GPIO_PIN_5);
 StepperPositionCtrl stepper_lift(GPIOA, GPIO_PIN_6, GPIOA, GPIO_PIN_7);
 
 enum class shutdown_status
     : uint8_t
     {
-        operational = 0,
-    soft_shutdown = 1,
-    hard_shutdown = 2,
-    recovering = 3,
+        operational = 0, soft_shutdown = 1, hard_shutdown = 2, recovering = 3,
 };
 
 ros::NodeHandle nh;
 //std_msgs::UInt16 user_input_msg;
 //ros::Publisher user_input_pub("user_input", &user_input_msg);
 ros::Subscriber<std_msgs::Bool> act_enable_sub("act_enable", &act_enable_callback);
-ros::Subscriber<std_msgs::Int32> lift_position("lift_position", &lift_position_callback);
+ros::Subscriber<std_msgs::Int16> launcher_pitch_sub("launcher_pitch", &launcher_pitch_callback);
 ros::Subscriber<std_msgs::Float32MultiArray> feet_velocity("motor_cmd_vel", &feet_velocity_callback);
-ros::Subscriber<std_msgs::Bool> hand_cylinder_sub("hand_cylinder", &hand_cylinder_callback);
 
-std_msgs::Bool shutdown_input_msg;
-std_msgs::Bool start_input_msg;
+ros::Subscriber<std_msgs::Int16> launcher_esc_sub("launcher_esc", &launcher_esc_callback);
+ros::Subscriber<std_msgs::Int16> loader_servo_sub("loader_servo", &loader_servo_callback);
+ros::Subscriber<std_msgs::Int16> arm_servo_sub("arm_servo", &arm_servo_callback);
+ros::Subscriber<std_msgs::Int16> picker_esc_sub("picker_esc", &picker_esc_callback);
+
+std_msgs::Empty shutdown_input_msg;
+std_msgs::Empty start_input_msg;
 ros::Publisher shutdown_input_pub("shutdown_input", &shutdown_input_msg);
 ros::Publisher start_input_pub("start_input", &start_input_msg);
 
@@ -128,6 +140,11 @@ volatile bool is_start_pressed = false;
 
 constexpr unsigned int cmd_timeout = 100;     // in ms
 unsigned int last_cmd_time = HAL_GetTick();
+
+constexpr int servo_neutral = 1520;
+constexpr int servo_range = 500;
+constexpr int servo_min = servo_neutral - servo_range;
+constexpr int servo_max = servo_neutral + servo_range;
 
 /* USER CODE END 0 */
 
@@ -150,6 +167,7 @@ int main(void)
     MX_GPIO_Init();
     MX_DMA_Init();
     MX_USART1_UART_Init();
+    MX_TIM1_Init();
     MX_TIM3_Init();
     MX_TIM4_Init();
 
@@ -159,15 +177,67 @@ int main(void)
     HAL_TIM_Base_Start_IT(&htim4);
     HAL_TIM_OC_Start_IT(&htim4, TIM_CHANNEL_1);
 
+    //__HAL_TIM_ENABLE()
+    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
+    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
+    TIM3->BDTR |= TIM_BDTR_MOE;
+
+    TIM3->CCR1 = 1520;
+    //TIM3->CCR1 = 2020;
+
+    init_led();
+
+    HAL_Delay(1000);
+
     /* Infinite loop */
+
+    feet_ctrl.enable();
+    float target[3] =
+    { 1.0, 1.0, 1.0 };
+    while (1)
+    {
+
+        GPIOC->BSRR = GPIO_BSRR_BR13;
+        target[0] = 1.0 / 0.03;
+        feet_ctrl.set_target((float *) target);
+        TIM3->CCR1 = 1520;
+        //HAL_Delay(2000);
+
+        for(int i = 0; i < 100;i++)
+        {
+            //TIM1->CCR3 = i*25;
+            //led_process();
+            HAL_Delay(20);
+        }
+
+        GPIOC->BSRR = GPIO_BSRR_BS13;
+        target[0] = -1.0 / (0.06 * M_PI);
+        feet_ctrl.set_target((float *) target);
+        TIM3->CCR1 = 2020;
+        //HAL_Delay(2000);
+
+        for(int i = 0; i < 100;i++)
+        {
+            //TIM1->CCR3 = (1000 - i*10);
+            //led_process();
+            HAL_Delay(20);
+        }
+    }
 
     nh.initNode();
     nh.advertise(shutdown_input_pub);
     nh.advertise(start_input_pub);
-    nh.subscribe(lift_position);
-    nh.subscribe(feet_velocity);
-    nh.subscribe(hand_cylinder_sub);
+
     nh.subscribe(act_enable_sub);
+    nh.subscribe(launcher_pitch_sub);
+    nh.subscribe(feet_velocity);
+
+    nh.subscribe(launcher_esc_sub);
+    nh.subscribe(loader_servo_sub);
+    nh.subscribe(arm_servo_sub);
+    nh.subscribe(picker_esc_sub);
 
     /* These uart interrupts halt any ongoing transfer if an error occurs, disable them */
     /* Disable the UART Parity Error Interrupt */
@@ -207,29 +277,24 @@ int main(void)
             }
 #endif
 
-
-            if((_shutdown_status != shutdown_status::hard_shutdown) && ((GPIOB->IDR & GPIO_IDR_IDR4) == 0u))
+            if ((_shutdown_status != shutdown_status::hard_shutdown) && ((GPIOB->IDR & GPIO_IDR_IDR3) == 0u))
             {
-                //is_shutdown_pressed = true;
+                is_shutdown_pressed = true;
             }
 
             if (is_shutdown_pressed)
             {
                 _shutdown_status = shutdown_status::hard_shutdown;
-                shutdown_input_msg.data = true;
                 shutdown_input_pub.publish(&shutdown_input_msg);
-                shutdown_input_msg.data = false;
 
                 is_shutdown_pressed = false;
             }
 
             if (is_start_pressed)
             {
-                if(_shutdown_status == shutdown_status::hard_shutdown)
+                if (_shutdown_status == shutdown_status::hard_shutdown)
                 {
-                    start_input_msg.data = true;
                     start_input_pub.publish(&start_input_msg);
-                    start_input_msg.data = false;
                     _shutdown_status = shutdown_status::recovering;
                 }
 
@@ -264,7 +329,7 @@ int main(void)
 
 void disable_actuators(void)
 {
-    GPIOA->BSRR = GPIO_BSRR_BS8;
+    GPIOA->BSRR = GPIO_BSRR_BS12;
     GPIOC->BSRR = GPIO_BSRR_BS13;
 
     GPIOB->BSRR = GPIO_BSRR_BR15;
@@ -285,7 +350,7 @@ void enable_actuators(void)
     feet_ctrl.enable();
     stepper_lift.enable();
 
-    GPIOA->BSRR = GPIO_BSRR_BR8;
+    GPIOA->BSRR = GPIO_BSRR_BR12;
     GPIOC->BSRR = GPIO_BSRR_BR13;
 
     //GPIOB->BSRR = GPIO_BSRR_BR15;
@@ -305,14 +370,14 @@ void on_start_pressed(void)
     is_start_pressed = true;
 }
 
-void lift_position_callback(const std_msgs::Int32& lift_pos_msg)
+void launcher_pitch_callback(const std_msgs::Int16& msg)
 {
     if (!is_actuators_enabled)
     {
         return;
     }
 
-    stepper_lift.set_target_position(lift_pos_msg.data);
+    stepper_lift.set_target_position(msg.data);
 }
 
 void feet_velocity_callback(const std_msgs::Float32MultiArray& feet_vel_msg)
@@ -349,12 +414,68 @@ void hand_cylinder_callback(const std_msgs::Bool& hand_cylinder_msg)
     }
 }
 
+int sanitize_servo(int a)
+{
+    if (servo_max < a)
+    {
+        return servo_max;
+    }
+    else if(a < servo_min)
+    {
+        return servo_min;
+    }
+    else
+    {
+        return a;
+    }
+}
+
+void launcher_esc_callback(const std_msgs::Int16& msg)
+{
+    if (!is_actuators_enabled || msg.data < 0)
+    {
+        TIM3->CCR1 = 0;
+        return;
+    }
+    TIM3->CCR1 = sanitize_servo(msg.data);
+}
+
+void loader_servo_callback(const std_msgs::Int16& msg)
+{
+    if (!is_actuators_enabled || msg.data < 0)
+    {
+        TIM3->CCR2 = 0;
+        return;
+    }
+    TIM3->CCR2 = sanitize_servo(msg.data);
+}
+
+void arm_servo_callback(const std_msgs::Int16& msg)
+{
+    if (!is_actuators_enabled || msg.data < 0)
+    {
+        TIM3->CCR3 = 0;
+        return;
+    }
+    TIM3->CCR3 = sanitize_servo(msg.data);
+}
+
+void picker_esc_callback(const std_msgs::Int16& msg)
+{
+    if (!is_actuators_enabled || msg.data < 0)
+    {
+        TIM3->CCR4 = 0;
+        return;
+    }
+    TIM3->CCR4 = sanitize_servo(msg.data);
+}
+
 void act_enable_callback(const std_msgs::Bool& act_enable_msg)
 {
     if (act_enable_msg.data)
     {
         // enable
-        if(_shutdown_status == shutdown_status::recovering)
+        if (_shutdown_status == shutdown_status::recovering)
         {
             enable_actuators();
             _shutdown_status = shutdown_status::operational;
@@ -365,7 +486,7 @@ void act_enable_callback(const std_msgs::Bool& act_enable_msg)
         // disable
         disable_actuators();
 
-        if(_shutdown_status == shutdown_status::operational)
+        if (_shutdown_status == shutdown_status::operational)
         {
             _shutdown_status = shutdown_status::soft_shutdown;
         }
@@ -443,16 +564,102 @@ void SystemClock_Config(void)
     HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
 }
 
-/* TIM3 init function */
-static void MX_TIM3_Init(void)
+/**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM1_Init(void)
+{
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+  TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 72u;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 1000u;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
+  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
+/* TIM2 init function */
+static void MX_TIM2_Init(void)
 {
     TIM_ClockConfigTypeDef sClockSourceConfig;
     TIM_MasterConfigTypeDef sMasterConfig;
 
+    htim2.Instance = TIM2;
+    htim2.Init.Prescaler = 72u - 1u;
+    htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+    htim2.Init.Period = 4000u - 1u;
+    htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+    htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+    if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+    {
+        _Error_Handler(__FILE__, __LINE__);
+    }
+
+    sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+    if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+    {
+        _Error_Handler(__FILE__, __LINE__);
+    }
+
+    sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+    sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+    if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+    {
+        _Error_Handler(__FILE__, __LINE__);
+    }
+}
+
+/* TIM3 init function */
+static void MX_TIM3_Init(void)
+{
+    TIM_ClockConfigTypeDef sClockSourceConfig={0};
+    TIM_MasterConfigTypeDef sMasterConfig =
+    { 0 };
+    TIM_OC_InitTypeDef sConfigOC =
+    { 0 };
+
     htim3.Instance = TIM3;
     htim3.Init.Prescaler = 72u - 1u;
     htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-    htim3.Init.Period = 4000u - 1u;
+    htim3.Init.Period = 20000u - 1u;					// T = 20 ms; f=50Hz.
     htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
     htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
     if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -472,6 +679,28 @@ static void MX_TIM3_Init(void)
     {
         _Error_Handler(__FILE__, __LINE__);
     }
+
+    sConfigOC.OCMode = TIM_OCMODE_PWM1;
+    sConfigOC.Pulse = 1000;
+    sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+    sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+    //sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
+    if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+    {
+        Error_Handler();
+    }
+    if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+    {
+        Error_Handler();
+    }
+    if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
+    {
+        Error_Handler();
+    }
+    if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
+    {
+        Error_Handler();
+    }
 }
 
 /* TIM3 init function */
@@ -484,7 +713,7 @@ static void MX_TIM4_Init(void)
     htim4.Instance = TIM4;
     htim4.Init.Prescaler = 72u - 1u;
     htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
-    htim4.Init.Period = 20u - 1u;                         // 72 MHz / 1440 -> 50 kHz
+    htim4.Init.Period = 20u - 1u;                     // 72 MHz / 1440 -> 50 kHz
     //htim4.Init.Period = 50u - 1u;                         // 72 MHz / 3600 -> 20 kHz
     htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
     htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -581,41 +810,26 @@ static void MX_GPIO_Init(void)
 
     GPIO_InitTypeDef sGPIOConfig;
 
-    // PA0 thru 8: stepper driver signal output
+    // PA0 thru 7 and 12: stepper driver signal output
     sGPIOConfig.Mode = GPIO_MODE_OUTPUT_PP;
-    sGPIOConfig.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7
-            | GPIO_PIN_8;
+    sGPIOConfig.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_12;
     sGPIOConfig.Pull = GPIO_NOPULL;
     sGPIOConfig.Speed = GPIO_SPEED_FREQ_HIGH;
     HAL_GPIO_Init(GPIOA, &sGPIOConfig);
 
-    // PB0, PB1: LED output
-    sGPIOConfig.Mode = GPIO_MODE_OUTPUT_PP;
-    sGPIOConfig.Pin = GPIO_PIN_0 | GPIO_PIN_1;
-    sGPIOConfig.Pull = GPIO_NOPULL;
-    sGPIOConfig.Speed = GPIO_SPEED_FREQ_HIGH;
-    HAL_GPIO_Init(GPIOB, &sGPIOConfig);
-
-    // PB3: START input, active-H
-    sGPIOConfig.Mode = GPIO_MODE_IT_RISING;
-    sGPIOConfig.Pin = GPIO_PIN_3;
-    sGPIOConfig.Pull = GPIO_PULLDOWN;
-    sGPIOConfig.Speed = GPIO_SPEED_FREQ_HIGH;
-    HAL_GPIO_Init(GPIOB, &sGPIOConfig);
-
-    //  PB4: nES input, active-L
+    // PC14: nES input, active-L
     sGPIOConfig.Mode = GPIO_MODE_IT_FALLING;
-    sGPIOConfig.Pin = GPIO_PIN_4;
+    sGPIOConfig.Pin = GPIO_PIN_14;
     sGPIOConfig.Pull = GPIO_PULLDOWN;
     sGPIOConfig.Speed = GPIO_SPEED_FREQ_HIGH;
-    HAL_GPIO_Init(GPIOB, &sGPIOConfig);
+    HAL_GPIO_Init(GPIOC, &sGPIOConfig);
 
-    //  PB15: pneumatic solenoid valve output
-    sGPIOConfig.Mode = GPIO_MODE_OUTPUT_PP;
+    //  PC15: START input, active-H
+    sGPIOConfig.Mode = GPIO_MODE_IT_RISING;
     sGPIOConfig.Pin = GPIO_PIN_15;
     sGPIOConfig.Pull = GPIO_PULLDOWN;
     sGPIOConfig.Speed = GPIO_SPEED_FREQ_HIGH;
-    HAL_GPIO_Init(GPIOB, &sGPIOConfig);
+    HAL_GPIO_Init(GPIOC, &sGPIOConfig);
 
     // PC13: onboard LED output
     sGPIOConfig.Mode = GPIO_MODE_OUTPUT_PP;
