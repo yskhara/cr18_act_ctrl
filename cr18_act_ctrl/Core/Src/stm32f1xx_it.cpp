@@ -258,7 +258,7 @@ void TIM3_IRQHandler(void)
 //extern "C"
 void TIM4_IRQHandler(void)
 {
-    GPIOB->BSRR = GPIO_BSRR_BS15;
+    //GPIOB->BSRR = GPIO_BSRR_BS15;
 	//HAL_TIM_IRQHandler(&htim4);
 	if ((TIM4->SR & TIM_SR_UIF) != 0u)
 	{
@@ -276,7 +276,7 @@ void TIM4_IRQHandler(void)
         //stepper_feet_c.reset_step();
         stepper_lift.reset_step();
 	}
-    GPIOB->BSRR = GPIO_BSRR_BR15;
+    //GPIOB->BSRR = GPIO_BSRR_BR15;
 }
 
 void USART1_IRQHandler(void)
@@ -284,7 +284,7 @@ void USART1_IRQHandler(void)
 	HAL_UART_IRQHandler(&huart1);
 }
 
-// nES interrupt
+// START interrupt
 void EXTI3_IRQHandler(void)
 {
     if(EXTI->PR & EXTI_PR_PR3)
@@ -297,12 +297,15 @@ void EXTI3_IRQHandler(void)
         //}
         //else
         //{
-            on_shutdown_pressed();
+        if((GPIOB->IDR & GPIO_IDR_IDR4) != 0u)
+        {
+            on_start_pressed();
+        }
         //}
     }
 }
 
-// START interrupt
+// nES interrupt
 void EXTI4_IRQHandler(void)
 {
     if(EXTI->PR & EXTI_PR_PR4)
@@ -311,10 +314,7 @@ void EXTI4_IRQHandler(void)
 
         //if(GPIOB->IDR & GPIO_IDR_IDR4)
         //{
-        if((GPIOB->IDR & GPIO_IDR_IDR3) != 0u)
-        {
-            on_start_pressed();
-        }
+            on_shutdown_pressed();
         //}
     }
 }

@@ -47,7 +47,7 @@
 #include <std_msgs/Float32MultiArray.h>
 #include <std_msgs/Bool.h>
 #include <std_msgs/UInt16.h>
-#include <std_msgs/Empty.h>
+//#include <std_msgs/Empty.h>
 
 #include "stepper_position_ctrl.h"
 #include "feet_ctrl.h"
@@ -113,8 +113,8 @@ ros::Subscriber<std_msgs::Int32> lift_position("lift_position", &lift_position_c
 ros::Subscriber<std_msgs::Float32MultiArray> feet_velocity("motor_cmd_vel", &feet_velocity_callback);
 ros::Subscriber<std_msgs::Bool> hand_cylinder_sub("hand_cylinder", &hand_cylinder_callback);
 
-std_msgs::Empty shutdown_input_msg;
-std_msgs::Empty start_input_msg;
+std_msgs::Bool shutdown_input_msg;
+std_msgs::Bool start_input_msg;
 ros::Publisher shutdown_input_pub("shutdown_input", &shutdown_input_msg);
 ros::Publisher start_input_pub("start_input", &start_input_msg);
 
@@ -208,15 +208,17 @@ int main(void)
 #endif
 
 
-            if((_shutdown_status != shutdown_status::hard_shutdown) && ((GPIOB->IDR & GPIO_IDR_IDR3) == 0u))
+            if((_shutdown_status != shutdown_status::hard_shutdown) && ((GPIOB->IDR & GPIO_IDR_IDR4) == 0u))
             {
-                is_shutdown_pressed = true;
+                //is_shutdown_pressed = true;
             }
 
             if (is_shutdown_pressed)
             {
                 _shutdown_status = shutdown_status::hard_shutdown;
+                shutdown_input_msg.data = true;
                 shutdown_input_pub.publish(&shutdown_input_msg);
+                shutdown_input_msg.data = false;
 
                 is_shutdown_pressed = false;
             }
@@ -225,7 +227,9 @@ int main(void)
             {
                 if(_shutdown_status == shutdown_status::hard_shutdown)
                 {
+                    start_input_msg.data = true;
                     start_input_pub.publish(&start_input_msg);
+                    start_input_msg.data = false;
                     _shutdown_status = shutdown_status::recovering;
                 }
 
@@ -592,15 +596,15 @@ static void MX_GPIO_Init(void)
     sGPIOConfig.Speed = GPIO_SPEED_FREQ_HIGH;
     HAL_GPIO_Init(GPIOB, &sGPIOConfig);
 
-    // PB3: nES input, active-L
-    sGPIOConfig.Mode = GPIO_MODE_IT_FALLING;
+    // PB3: START input, active-H
+    sGPIOConfig.Mode = GPIO_MODE_IT_RISING;
     sGPIOConfig.Pin = GPIO_PIN_3;
     sGPIOConfig.Pull = GPIO_PULLDOWN;
     sGPIOConfig.Speed = GPIO_SPEED_FREQ_HIGH;
     HAL_GPIO_Init(GPIOB, &sGPIOConfig);
 
-    //  PB4: START input, active-H
-    sGPIOConfig.Mode = GPIO_MODE_IT_RISING;
+    //  PB4: nES input, active-L
+    sGPIOConfig.Mode = GPIO_MODE_IT_FALLING;
     sGPIOConfig.Pin = GPIO_PIN_4;
     sGPIOConfig.Pull = GPIO_PULLDOWN;
     sGPIOConfig.Speed = GPIO_SPEED_FREQ_HIGH;
