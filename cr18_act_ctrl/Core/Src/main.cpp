@@ -184,8 +184,8 @@ int main(void)
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
     TIM3->BDTR |= TIM_BDTR_MOE;
 
-    //TIM3->CCR1 = 1520;
-    TIM3->CCR1 = 2020;
+    TIM3->CCR1 = 1520;
+    //TIM3->CCR1 = 2020;
 
     init_led();
 
@@ -202,7 +202,7 @@ int main(void)
         GPIOC->BSRR = GPIO_BSRR_BR13;
         target[0] = 1.0 / 0.03;
         feet_ctrl.set_target((float *) target);
-        //TIM3->CCR1 = 2020;
+        TIM3->CCR1 = 1520;
         //HAL_Delay(2000);
 
         for(int i = 0; i < 100;i++)
@@ -215,7 +215,7 @@ int main(void)
         GPIOC->BSRR = GPIO_BSRR_BS13;
         target[0] = -1.0 / (0.06 * M_PI);
         feet_ctrl.set_target((float *) target);
-        //TIM3->CCR1 = 2500;
+        TIM3->CCR1 = 2020;
         //HAL_Delay(2000);
 
         for(int i = 0; i < 100;i++)
