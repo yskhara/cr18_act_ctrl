@@ -37,7 +37,7 @@ private:
     };
 
     static constexpr double steps_per_rev = (45.0 / 16) * 16 * 200;
-    static constexpr double steps_per_rad = steps_per_rev / (2.0 * M_PI);
+    static constexpr double steps_per_rad = -steps_per_rev / (2.0 * M_PI);
     static constexpr double maximum_velocity = 6 * steps_per_rev;       // in [milli-step/ms]
 
 #ifdef ACCEL_LIMIT

@@ -117,12 +117,12 @@ ros::NodeHandle nh;
 //std_msgs::UInt16 user_input_msg;
 //ros::Publisher user_input_pub("user_input", &user_input_msg);
 ros::Subscriber<std_msgs::Bool> act_enable_sub("act_enable", &act_enable_callback);
-ros::Subscriber<std_msgs::Int16> launcher_pitch_sub("launcher_pitch", &launcher_pitch_callback);
+ros::Subscriber<std_msgs::Int16> launcher_pitch_sub("pitch_angle", &launcher_pitch_callback);
 ros::Subscriber<std_msgs::Float32MultiArray> feet_velocity("motor_cmd_vel", &feet_velocity_callback);
 
 ros::Subscriber<std_msgs::Int16> launcher_esc_sub("launcher_esc", &launcher_esc_callback);
 ros::Subscriber<std_msgs::Int16> loader_servo_sub("loader_servo", &loader_servo_callback);
-ros::Subscriber<std_msgs::Int16> arm_servo_sub("arm_servo", &arm_servo_callback);
+ros::Subscriber<std_msgs::Int16> arm_servo_sub("picker_servo", &arm_servo_callback);
 ros::Subscriber<std_msgs::Int16> picker_esc_sub("picker_esc", &picker_esc_callback);
 
 std_msgs::Empty shutdown_input_msg;
@@ -142,9 +142,10 @@ constexpr unsigned int cmd_timeout = 100;     // in ms
 unsigned int last_cmd_time = HAL_GetTick();
 
 constexpr int servo_neutral = 1520;
-constexpr int servo_range = 500;
+constexpr int servo_range = 1000;
 constexpr int servo_min = servo_neutral - servo_range;
 constexpr int servo_max = servo_neutral + servo_range;
+constexpr int esc_off = 1000;
 
 /* USER CODE END 0 */
 
@@ -171,6 +172,9 @@ int main(void)
     MX_TIM3_Init();
     MX_TIM4_Init();
 
+    // set nEN -> reset EN -> disable steppers
+    GPIOA->BSRR = GPIO_BSRR_BS11;
+
     //HAL_Delay(1000);
 
     HAL_TIM_Base_Start_IT(&htim3);
@@ -184,15 +188,16 @@ int main(void)
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
     TIM3->BDTR |= TIM_BDTR_MOE;
 
-    TIM3->CCR1 = 1520;
-    //TIM3->CCR1 = 2020;
+    //TIM3->CCR1 = 1520;
 
+    disable_actuators();    // this resets all the servo signals to their respective initial states
     init_led();
 
     HAL_Delay(1000);
 
     /* Infinite loop */
 
+    /*
     feet_ctrl.enable();
     float target[3] =
     { 1.0, 1.0, 1.0 };
@@ -225,6 +230,7 @@ int main(void)
             HAL_Delay(20);
         }
     }
+    */
 
     nh.initNode();
     nh.advertise(shutdown_input_pub);
@@ -260,6 +266,9 @@ int main(void)
             {
                 is_node_enabled = true;
             }
+
+            led_set_color(led_yellow);
+            led_set_pattern(led_pattern_square_128bpm);
         }
         else if (!nh.connected())
         {
@@ -277,7 +286,7 @@ int main(void)
             }
 #endif
 
-            if ((_shutdown_status != shutdown_status::hard_shutdown) && ((GPIOB->IDR & GPIO_IDR_IDR3) == 0u))
+            if ((_shutdown_status != shutdown_status::hard_shutdown) && ((nES_GPIO_Port->IDR & nES_Pin) == 0u))
             {
                 is_shutdown_pressed = true;
             }
@@ -299,6 +308,27 @@ int main(void)
                 }
 
                 is_start_pressed = false;
+            }
+
+            switch(_shutdown_status)
+            {
+                case shutdown_status::operational:
+                    led_set_color(led_blue);
+                    led_set_pattern(led_pattern_exp_1hz);
+                    break;
+
+                case shutdown_status::hard_shutdown:
+                    led_set_color(led_red);
+                    led_set_pattern(led_pattern_exp_0_5hz);
+                    break;
+
+                case shutdown_status::soft_shutdown:
+                    led_set_color(led_yellow);
+                    led_set_pattern(led_pattern_exp_0_5hz);
+                    break;
+
+                default:
+                    break;
             }
 
             last_ctrl_time = HAL_GetTick();
@@ -329,10 +359,19 @@ int main(void)
 
 void disable_actuators(void)
 {
-    GPIOA->BSRR = GPIO_BSRR_BS12;
+    //GPIOA->BSRR = GPIO_BSRR_BS12;
+    GPIOA->BSRR = GPIO_BSRR_BS11;
     GPIOC->BSRR = GPIO_BSRR_BS13;
 
-    GPIOB->BSRR = GPIO_BSRR_BR15;
+    //GPIOB->BSRR = GPIO_BSRR_BR15;
+
+    // stop bldc's
+    TIM_SERVO->TIM_CCR_LAUNCHER_ESC = esc_off;
+    TIM_SERVO->TIM_CCR_PICKER_ESC = esc_off;
+
+    // neutralize servo's
+    TIM_SERVO->TIM_CCR_LOADER_SERVO = 0;
+    TIM_SERVO->TIM_CCR_PICKER_SERVO = 0;
 
     feet_ctrl.disable();
     stepper_lift.disable();
@@ -350,7 +389,7 @@ void enable_actuators(void)
     feet_ctrl.enable();
     stepper_lift.enable();
 
-    GPIOA->BSRR = GPIO_BSRR_BR12;
+    GPIOA->BSRR = GPIO_BSRR_BR11;
     GPIOC->BSRR = GPIO_BSRR_BR13;
 
     //GPIOB->BSRR = GPIO_BSRR_BR15;
@@ -434,40 +473,40 @@ void launcher_esc_callback(const std_msgs::Int16& msg)
 {
     if (!is_actuators_enabled || msg.data < 0)
     {
-        TIM3->CCR1 = 0;
+        TIM_SERVO->TIM_CCR_LAUNCHER_ESC = 0;
         return;
     }
-    TIM3->CCR1 = sanitize_servo(msg.data);
+    TIM_SERVO->TIM_CCR_LAUNCHER_ESC = sanitize_servo(msg.data);
 }
 
 void loader_servo_callback(const std_msgs::Int16& msg)
 {
     if (!is_actuators_enabled || msg.data < 0)
     {
-        TIM3->CCR2 = 0;
+        TIM_SERVO->TIM_CCR_LOADER_SERVO = 0;
         return;
     }
-    TIM3->CCR2 = sanitize_servo(msg.data);
+    TIM_SERVO->TIM_CCR_LOADER_SERVO = sanitize_servo(msg.data);
 }
 
 void arm_servo_callback(const std_msgs::Int16& msg)
 {
     if (!is_actuators_enabled || msg.data < 0)
     {
-        TIM3->CCR3 = 0;
+        TIM_SERVO->TIM_CCR_PICKER_SERVO = 0;
         return;
     }
-    TIM3->CCR3 = sanitize_servo(msg.data);
+    TIM_SERVO->TIM_CCR_PICKER_SERVO = sanitize_servo(msg.data);
 }
 
 void picker_esc_callback(const std_msgs::Int16& msg)
 {
     if (!is_actuators_enabled || msg.data < 0)
     {
-        TIM3->CCR4 = 0;
+        TIM_SERVO->TIM_CCR_PICKER_ESC = 0;
         return;
     }
-    TIM3->CCR4 = sanitize_servo(msg.data);
+    TIM_SERVO->TIM_CCR_PICKER_ESC = sanitize_servo(msg.data);
 }
 
 void act_enable_callback(const std_msgs::Bool& act_enable_msg)
@@ -681,7 +720,7 @@ static void MX_TIM3_Init(void)
     }
 
     sConfigOC.OCMode = TIM_OCMODE_PWM1;
-    sConfigOC.Pulse = 1000;
+    sConfigOC.Pulse = 0;
     sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
     sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
     //sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
@@ -810,26 +849,26 @@ static void MX_GPIO_Init(void)
 
     GPIO_InitTypeDef sGPIOConfig;
 
-    // PA0 thru 7 and 12: stepper driver signal output
+    // PA0 thru 7 and 11: stepper driver signal output
     sGPIOConfig.Mode = GPIO_MODE_OUTPUT_PP;
-    sGPIOConfig.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_12;
+    sGPIOConfig.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_11;
     sGPIOConfig.Pull = GPIO_NOPULL;
     sGPIOConfig.Speed = GPIO_SPEED_FREQ_HIGH;
     HAL_GPIO_Init(GPIOA, &sGPIOConfig);
 
-    // PC14: nES input, active-L
+    // PB9: nES input, active-L
     sGPIOConfig.Mode = GPIO_MODE_IT_FALLING;
-    sGPIOConfig.Pin = GPIO_PIN_14;
+    sGPIOConfig.Pin = GPIO_PIN_9;
     sGPIOConfig.Pull = GPIO_PULLDOWN;
     sGPIOConfig.Speed = GPIO_SPEED_FREQ_HIGH;
-    HAL_GPIO_Init(GPIOC, &sGPIOConfig);
+    HAL_GPIO_Init(GPIOB, &sGPIOConfig);
 
-    //  PC15: START input, active-H
+    //  PB8: START input, active-H
     sGPIOConfig.Mode = GPIO_MODE_IT_RISING;
-    sGPIOConfig.Pin = GPIO_PIN_15;
+    sGPIOConfig.Pin = GPIO_PIN_8;
     sGPIOConfig.Pull = GPIO_PULLDOWN;
     sGPIOConfig.Speed = GPIO_SPEED_FREQ_HIGH;
-    HAL_GPIO_Init(GPIOC, &sGPIOConfig);
+    HAL_GPIO_Init(GPIOB, &sGPIOConfig);
 
     // PC13: onboard LED output
     sGPIOConfig.Mode = GPIO_MODE_OUTPUT_PP;
@@ -839,11 +878,11 @@ static void MX_GPIO_Init(void)
     HAL_GPIO_Init(GPIOC, &sGPIOConfig);
 
     /* EXTI interrupt init*/
-    HAL_NVIC_SetPriority(EXTI3_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(EXTI3_IRQn);
+    HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
-    HAL_NVIC_SetPriority(EXTI4_IRQn, 2, 0);
-    HAL_NVIC_EnableIRQ(EXTI4_IRQn);
+    //HAL_NVIC_SetPriority(EXTI4_IRQn, 2, 0);
+    //HAL_NVIC_EnableIRQ(EXTI4_IRQn);
 }
 
 /* USER CODE BEGIN 4 */

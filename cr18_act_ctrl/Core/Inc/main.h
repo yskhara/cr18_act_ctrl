@@ -57,6 +57,21 @@
 /* #define USE_FULL_ASSERT    1U */
 
 /* USER CODE BEGIN Private defines */
+#define START_Pin GPIO_PIN_8
+#define START_GPIO_Port GPIOB
+#define START_EXTI_IRQn EXTI9_5_IRQn
+#define nES_Pin GPIO_PIN_9
+#define nES_GPIO_Port GPIOB
+#define nES_EXTI_IRQn EXTI9_5_IRQn
+
+#define nEN_Pin GPIO_PIN_11
+#define nEN_GPIO_Port GPIOA
+
+#define TIM_SERVO TIM3
+#define TIM_CCR_LAUNCHER_ESC CCR1
+#define TIM_CCR_LOADER_SERVO CCR2
+#define TIM_CCR_PICKER_ESC CCR3
+#define TIM_CCR_PICKER_SERVO CCR4
 
 /* USER CODE END Private defines */
 

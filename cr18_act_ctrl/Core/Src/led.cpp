@@ -13,24 +13,12 @@ enum class led_pattern
         Pattern_A
 };
 
-struct Color
-{
-    uint8_t R;
-    uint8_t G;
-    uint8_t B;
-};
-
-constexpr Color BLUE =
-{ 0, 0, 255 };
-
-constexpr Color YELLOW = {255, 150,0};
-
 uint8_t ms_per_frame = 20;
 uint32_t start_time = 0;
 
 uint8_t pattern_current_index = 0;
 const uint8_t * current_pattern = led_pattern_square_128bpm;
-const Color * current_color = &YELLOW;
+const Color * current_color = led_yellow;
 
 void init_led(void)
 {
@@ -42,11 +30,22 @@ void init_led(void)
     TIM1->BDTR |= TIM_BDTR_MOE;
 }
 
-void apply_color(const Color * color, uint8_t mul = 255)
+void led_set_color(const Color * const color)
 {
-    TIM1->CCR1 = color->R * 1000 * mul / (255 * 255);
-    TIM1->CCR2 = color->G * 1000 * mul / (255 * 255);
-    TIM1->CCR3 = color->B * 1000 * mul / (255 * 255);
+    current_color = color;
+}
+
+void led_set_pattern(const uint8_t * pattern)
+{
+    current_pattern = pattern;
+    //pattern_current_index = 1;
+}
+
+void apply_color(uint8_t mul = 255)
+{
+    TIM1->CCR1 = current_color->R * 1000 * mul / (255 * 255);
+    TIM1->CCR2 = current_color->G * 1000 * mul / (255 * 255);
+    TIM1->CCR3 = current_color->B * 1000 * mul / (255 * 255);
 }
 
 void led_process(void)
@@ -56,6 +55,6 @@ void led_process(void)
         pattern_current_index = 1;
     }
 
-    apply_color(current_color, current_pattern[pattern_current_index++]);
+    apply_color(current_pattern[pattern_current_index++]);
 }
 

@@ -187,7 +187,7 @@ void StepperPositionCtrl::set_target_position(int target)
 {
     if (this->m_enabled)
     {
-        this->m_target_position = target * 1000;       // convert to milli-steps
+        this->m_target_position = -target * 1000;       // convert to milli-steps
     }
 
     //calculate_profile();

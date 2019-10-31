@@ -10,12 +10,15 @@
 
 #include "stm32f1xx_hal.h"
 #include "stepper_segment.h"
+#include <cmath>
 
 class StepperPositionCtrl
 {
 private:
 
-    static constexpr double steps_per_mm = 16 * 200 * 3 / 40.0;
+    //static constexpr double steps_per_mm = 16 * 200 * 3 / 40.0;
+    static constexpr double steps_per_rev = (144.0 / 16) * 16 * 200;
+    static constexpr double steps_per_rad = steps_per_rev / (2.0 * M_PI);
     //static constexpr int maximum_velocity =  125 * steps_per_mm;      // in [milli-step/ms]
     static constexpr int maximum_velocity = 10 * 3200;     // in [milli-step/ms]
 
@@ -44,7 +47,7 @@ private:
     //volatile bool m_is_idle = true;
     //bool m_busy = false;
 
-    static constexpr int seg_buf_size = 30;            // size of segment buffer
+    static constexpr int seg_buf_size = 64;            // size of segment buffer
     static constexpr int seg_buf_mask = seg_buf_size - 1;       // mask
     StepperSegment seg_buf[seg_buf_size];                             // segment buffer
     volatile int seg_buf_head = 0;                                   // pointer for store
