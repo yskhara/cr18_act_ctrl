@@ -67,11 +67,17 @@
 #define nEN_Pin GPIO_PIN_11
 #define nEN_GPIO_Port GPIOA
 
+#if 0
 #define TIM_SERVO TIM3
 #define TIM_CCR_LAUNCHER_ESC CCR1
 #define TIM_CCR_LOADER_SERVO CCR2
 #define TIM_CCR_PICKER_ESC CCR3
 #define TIM_CCR_PICKER_SERVO CCR4
+#endif
+
+#define CHUCK_GPIO (GPIOB)
+#define CHUCK_LEFT_PIN (GPIO_PIN_0)
+#define CHUCK_RIGHT_PIN (GPIO_PIN_1)
 
 /* USER CODE END Private defines */
 

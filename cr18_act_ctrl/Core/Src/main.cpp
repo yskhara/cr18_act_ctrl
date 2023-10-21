@@ -49,7 +49,7 @@
 //#include <std_msgs/Int32.h>
 #include <std_msgs/Float32MultiArray.h>
 #include <std_msgs/Bool.h>
-#include <std_msgs/Int16.h>
+#include <std_msgs/Int32.h>
 #include <std_msgs/Empty.h>
 
 #include "stepper_position_ctrl.h"
@@ -83,14 +83,12 @@ static void MX_TIM4_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
-void launcher_pitch_callback(const std_msgs::Int16& msg);
+void launcher_pitch_callback(const std_msgs::Int32& msg);
 void feet_velocity_callback(const std_msgs::Float32MultiArray& msg);
 void act_enable_callback(const std_msgs::Bool& msg);
 
-void launcher_esc_callback(const std_msgs::Int16& msg);
-void loader_servo_callback(const std_msgs::Int16& msg);
-void arm_servo_callback(const std_msgs::Int16& msg);
-void picker_esc_callback(const std_msgs::Int16& msg);
+void chuck_left_callback(const std_msgs::Bool& msg);
+void chuck_right_callback(const std_msgs::Bool& msg);
 
 void disable_actuators(void);
 void enable_actuators(void);
@@ -99,10 +97,6 @@ void on_start_pressed(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
-
-//StepperVelocityCtrl stepper_feet_a(GPIOA, GPIO_PIN_0, GPIOA, GPIO_PIN_1);
-//StepperVelocityCtrl stepper_feet_b(GPIOA, GPIO_PIN_2, GPIOA, GPIO_PIN_3);
-//StepperVelocityCtrl stepper_feet_c(GPIOA, GPIO_PIN_4, GPIOA, GPIO_PIN_5);
 FeetCtrl feet_ctrl(GPIOA, GPIO_PIN_0, GPIO_PIN_2, GPIO_PIN_4, GPIOA, GPIO_PIN_1,
 GPIO_PIN_3, GPIO_PIN_5);
 StepperPositionCtrl stepper_lift(GPIOA, GPIO_PIN_6, GPIOA, GPIO_PIN_7);
@@ -114,16 +108,13 @@ enum class shutdown_status
 };
 
 ros::NodeHandle nh;
-//std_msgs::UInt16 user_input_msg;
-//ros::Publisher user_input_pub("user_input", &user_input_msg);
+
 ros::Subscriber<std_msgs::Bool> act_enable_sub("act_enable", &act_enable_callback);
-ros::Subscriber<std_msgs::Int16> launcher_pitch_sub("pitch_angle", &launcher_pitch_callback);
+ros::Subscriber<std_msgs::Int32> launcher_pitch_sub("pitch_angle", &launcher_pitch_callback);
 ros::Subscriber<std_msgs::Float32MultiArray> feet_velocity("motor_cmd_vel", &feet_velocity_callback);
 
-ros::Subscriber<std_msgs::Int16> launcher_esc_sub("launcher_esc", &launcher_esc_callback);
-ros::Subscriber<std_msgs::Int16> loader_servo_sub("loader_servo", &loader_servo_callback);
-ros::Subscriber<std_msgs::Int16> arm_servo_sub("picker_servo", &arm_servo_callback);
-ros::Subscriber<std_msgs::Int16> picker_esc_sub("picker_esc", &picker_esc_callback);
+ros::Subscriber<std_msgs::Bool> chuck_left_sub("chuck_left", &chuck_left_callback);
+ros::Subscriber<std_msgs::Bool> chuck_right_sub("chuck_right", &chuck_right_callback);
 
 std_msgs::Empty shutdown_input_msg;
 std_msgs::Empty start_input_msg;
@@ -182,8 +173,8 @@ int main(void)
     HAL_TIM_OC_Start_IT(&htim4, TIM_CHANNEL_1);
 
     //__HAL_TIM_ENABLE()
-    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+    //HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+    //HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
     TIM3->BDTR |= TIM_BDTR_MOE;
@@ -240,10 +231,8 @@ int main(void)
     nh.subscribe(launcher_pitch_sub);
     nh.subscribe(feet_velocity);
 
-    nh.subscribe(launcher_esc_sub);
-    nh.subscribe(loader_servo_sub);
-    nh.subscribe(arm_servo_sub);
-    nh.subscribe(picker_esc_sub);
+    nh.subscribe(chuck_left_sub);
+    nh.subscribe(chuck_right_sub);
 
     /* These uart interrupts halt any ongoing transfer if an error occurs, disable them */
     /* Disable the UART Parity Error Interrupt */
@@ -365,13 +354,8 @@ void disable_actuators(void)
 
     //GPIOB->BSRR = GPIO_BSRR_BR15;
 
-    // stop bldc's
-    TIM_SERVO->TIM_CCR_LAUNCHER_ESC = esc_off;
-    TIM_SERVO->TIM_CCR_PICKER_ESC = esc_off;
-
-    // neutralize servo's
-    TIM_SERVO->TIM_CCR_LOADER_SERVO = 0;
-    TIM_SERVO->TIM_CCR_PICKER_SERVO = 0;
+    // Clear outputs to solenoid drivers
+    CHUCK_GPIO->BRR = CHUCK_LEFT_PIN | CHUCK_RIGHT_PIN;
 
     feet_ctrl.disable();
     stepper_lift.disable();
@@ -409,7 +393,7 @@ void on_start_pressed(void)
     is_start_pressed = true;
 }
 
-void launcher_pitch_callback(const std_msgs::Int16& msg)
+void launcher_pitch_callback(const std_msgs::Int32& msg)
 {
     if (!is_actuators_enabled)
     {
@@ -469,44 +453,24 @@ int sanitize_servo(int a)
     }
 }
 
-void launcher_esc_callback(const std_msgs::Int16& msg)
+void chuck_left_callback(const std_msgs::Bool& msg)
 {
-    if (!is_actuators_enabled || msg.data < 0)
+    if (!is_actuators_enabled || !msg.data)
     {
-        TIM_SERVO->TIM_CCR_LAUNCHER_ESC = 0;
+        CHUCK_GPIO->BRR = CHUCK_LEFT_PIN;
         return;
     }
-    TIM_SERVO->TIM_CCR_LAUNCHER_ESC = sanitize_servo(msg.data);
+    CHUCK_GPIO->BSRR = CHUCK_LEFT_PIN;
 }
 
-void loader_servo_callback(const std_msgs::Int16& msg)
+void chuck_right_callback(const std_msgs::Bool& msg)
 {
-    if (!is_actuators_enabled || msg.data < 0)
+    if (!is_actuators_enabled || !msg.data)
     {
-        TIM_SERVO->TIM_CCR_LOADER_SERVO = 0;
+        CHUCK_GPIO->BRR = CHUCK_RIGHT_PIN;
         return;
     }
-    TIM_SERVO->TIM_CCR_LOADER_SERVO = sanitize_servo(msg.data);
-}
-
-void arm_servo_callback(const std_msgs::Int16& msg)
-{
-    if (!is_actuators_enabled || msg.data < 0)
-    {
-        TIM_SERVO->TIM_CCR_PICKER_SERVO = 0;
-        return;
-    }
-    TIM_SERVO->TIM_CCR_PICKER_SERVO = sanitize_servo(msg.data);
-}
-
-void picker_esc_callback(const std_msgs::Int16& msg)
-{
-    if (!is_actuators_enabled || msg.data < 0)
-    {
-        TIM_SERVO->TIM_CCR_PICKER_ESC = 0;
-        return;
-    }
-    TIM_SERVO->TIM_CCR_PICKER_ESC = sanitize_servo(msg.data);
+    CHUCK_GPIO->BSRR = CHUCK_RIGHT_PIN;
 }
 
 void act_enable_callback(const std_msgs::Bool& act_enable_msg)
@@ -855,6 +819,14 @@ static void MX_GPIO_Init(void)
     sGPIOConfig.Pull = GPIO_NOPULL;
     sGPIOConfig.Speed = GPIO_SPEED_FREQ_HIGH;
     HAL_GPIO_Init(GPIOA, &sGPIOConfig);
+
+
+    // PB0 and PB1: solenoid driver signal output, active-H
+    sGPIOConfig.Mode = GPIO_MODE_OUTPUT_PP;
+    sGPIOConfig.Pin = GPIO_PIN_0 | GPIO_PIN_1;
+    sGPIOConfig.Pull = GPIO_PULLDOWN;
+    sGPIOConfig.Speed = GPIO_SPEED_FREQ_HIGH;
+    HAL_GPIO_Init(GPIOB, &sGPIOConfig);
 
     // PB9: nES input, active-L
     sGPIOConfig.Mode = GPIO_MODE_IT_FALLING;

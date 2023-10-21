@@ -128,7 +128,7 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
          PB5     ------> TIM3_CH2
          PB4     ------> TIM3_CH1
          */
-        GPIO_InitStruct.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_4 | GPIO_PIN_5;
+        GPIO_InitStruct.Pin = /*GPIO_PIN_0 | GPIO_PIN_1 |*/ GPIO_PIN_4 | GPIO_PIN_5;
         GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
         GPIO_InitStruct.Pull = GPIO_NOPULL;
         GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
@@ -142,7 +142,7 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
         __HAL_RCC_TIM4_CLK_ENABLE()
         ;
 
-        /* TIM3 interrupt Init */
+        /* TIM4 interrupt Init */
         HAL_NVIC_SetPriority(TIM4_IRQn, 0, 0);
         HAL_NVIC_EnableIRQ(TIM4_IRQn);
     }
